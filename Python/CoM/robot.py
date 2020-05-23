@@ -112,6 +112,25 @@ class Robot(Obj):
                         self.HipL, self.LegL, self.KneeL, self.AnkleL, self.FootL,
                         self.HipR, self.LegR, self.KneeR, self.AnkleR, self.FootR]
 
+        
+        self.LastHead=-1
+        self.LastShoulderL=-1
+        self.LastArmL=-1
+        self.LastHandL=-1
+        self.LastShoulderR=-1
+        self.LastArmR=-1
+        self.LastHandR=-1 
+        self.LastHipL=-1
+        self.LastLegL=-1
+        self.LastKneeL=-1
+        self.LastAnkleL=-1
+        self.LastFootL=-1 
+        self.LastHipR=-1
+        self.LastLegR=-1
+        self.LastKneeR=-1
+        self.LastAnkleR=-1
+        self.LastFootR=-1
+
         super().__init__(position=(0, 0, 0))
 
     def draw(self, ax, Head=0, ShoulderL=0, ArmL=0, HandL=0, ShoulderR=0, ArmR=0, HandR=0 ,HipL=0, LegL=0, KneeL=0, AnkleL=0, FootL=0 ,HipR=0, LegR=0, KneeR=0, AnkleR=0, FootR=0):
@@ -135,21 +154,59 @@ class Robot(Obj):
         return super().draw(ax)
 
     def send_serial(self, ser, Head=0, ShoulderL=0, ArmL=0, HandL=0, ShoulderR=0, ArmR=0, HandR=0 ,HipL=0, LegL=0, KneeL=0, AnkleL=0, FootL=0 ,HipR=0, LegR=0, KneeR=0, AnkleR=0, FootR=0):
-        string = f'#{HeadPIN}P{int(HeadZERO + PinsPerAngle*Head)}'
-        string += f'#{ShoulderLPIN}P{int(ShoulderLZERO + PinsPerAngle*ShoulderL)}'
-        string += f'#{ArmLPIN}P{int(ArmLZERO + PinsPerAngle*ArmL)}'
-        string += f'#{HandLPIN}P{int(HandLZERO + PinsPerAngle*HandL)}'
-        string += f'#{ShoulderRPIN}P{int(ShoulderRZERO + PinsPerAngle*ShoulderR)}'
-        string += f'#{ArmRPIN}P{int(ArmRZERO + PinsPerAngle*ArmR)}'
-        string += f'#{HandRPIN}P{int(HandRZERO + PinsPerAngle*HandR)}'
-        string += f'#{HipLPIN}P{int(HipLZERO + PinsPerAngle*HipL)}'
-        string += f'#{LegLPIN}P{int(LegLZERO + PinsPerAngle*LegL)}'
-        string += f'#{KneeLPIN}P{int(KneeLZERO + PinsPerAngle*KneeL)}'
-        string += f'#{AnkleLPIN}P{int(AnkleLZERO + PinsPerAngle*AnkleL)}'
-        string += f'#{FootLPIN}P{int(FootLZERO + PinsPerAngle*FootL)}'
-        string += f'#{HipRPIN}P{int(HipRZERO + PinsPerAngle*HipR)}'
-        string += f'#{LegRPIN}P{int(LegRZERO + PinsPerAngle*LegR)}'
-        string += f'#{KneeRPIN}P{int(KneeRZERO + PinsPerAngle*KneeR)}'
-        string += f'#{AnkleRPIN}P{int(AnkleRZERO + PinsPerAngle*AnkleR)}'
-        string += f'#{FootRPIN}P{int(FootRZERO + PinsPerAngle*FootR)}'
-        ser.write(f'{string}T100\r\n'.encode())
+        string = ''
+        if self.LastHead != Head:
+            string = f'#{HeadPIN}P{int(HeadZERO + PinsPerAngle*Head)}'
+        if self.LastShoulderL != ShoulderL:
+            string += f'#{ShoulderLPIN}P{int(ShoulderLZERO + PinsPerAngle*ShoulderL)}'
+        if self.LastArmL != ArmL:
+            string += f'#{ArmLPIN}P{int(ArmLZERO + PinsPerAngle*ArmL)}'
+        if self.LastHandL != HandL:
+            string += f'#{HandLPIN}P{int(HandLZERO + PinsPerAngle*HandL)}'
+        if self.LastShoulderR != ShoulderR:
+            string += f'#{ShoulderRPIN}P{int(ShoulderRZERO + PinsPerAngle*ShoulderR)}'
+        if self.LastArmR != ArmR:
+            string += f'#{ArmRPIN}P{int(ArmRZERO + PinsPerAngle*ArmR)}'
+        if self.LastHandR != HandR:
+            string += f'#{HandRPIN}P{int(HandRZERO + PinsPerAngle*HandR)}'
+        if self.LastHipL != HipL:
+            string += f'#{HipLPIN}P{int(HipLZERO + PinsPerAngle*HipL)}'
+        if self.LastLegL != LegL:
+            string += f'#{LegLPIN}P{int(LegLZERO + PinsPerAngle*LegL)}'
+        if self.LastKneeL != KneeL:
+            string += f'#{KneeLPIN}P{int(KneeLZERO + PinsPerAngle*KneeL)}'
+        if self.LastAnkleL != AnkleL:
+            string += f'#{AnkleLPIN}P{int(AnkleLZERO + PinsPerAngle*AnkleL)}'
+        if self.LastFootL != FootL:
+            string += f'#{FootLPIN}P{int(FootLZERO + PinsPerAngle*FootL)}'
+        if self.LastHipR != HipR:
+            string += f'#{HipRPIN}P{int(HipRZERO + PinsPerAngle*HipR)}'
+        if self.LastLegR != LegR:
+            string += f'#{LegRPIN}P{int(LegRZERO + PinsPerAngle*LegR)}'
+        if self.LastKneeR != KneeR:
+            string += f'#{KneeRPIN}P{int(KneeRZERO + PinsPerAngle*KneeR)}'
+        if self.LastAnkleR != AnkleR:
+            string += f'#{AnkleRPIN}P{int(AnkleRZERO + PinsPerAngle*AnkleR)}'
+        if self.LastFootR != FootR:
+            string += f'#{FootRPIN}P{int(FootRZERO + PinsPerAngle*FootR)}'
+        string = f'{string}T100\r\n'
+        print(string)
+        ser.write(string.encode())
+        
+        self.LastHead=Head
+        self.LastShoulderL=ShoulderL
+        self.LastArmL=ArmL
+        self.LastHandL=HandL
+        self.LastShoulderR=ShoulderR
+        self.LastArmR=ArmR
+        self.LastHandR=HandR 
+        self.LastHipL=HipL
+        self.LastLegL=LegL
+        self.LastKneeL=KneeL
+        self.LastAnkleL=AnkleL
+        self.LastFootL=FootL 
+        self.LastHipR=HipR
+        self.LastLegR=LegR
+        self.LastKneeR=KneeR
+        self.LastAnkleR=AnkleR
+        self.LastFootR=FootR

@@ -6,7 +6,7 @@ import math
 import serial
 
 robot = Robot()
-ser = serial.Serial('COM1', baudrate=9600, timeout=1)
+ser = serial.Serial('COM8', baudrate=9600, timeout=1)
 
 def update_robot(num):
     LegAngleL, KneeAngleL, AnkleAngleL = inverse_kinematic_xz(robot.HipToGround - data['left_foot_z_values'][num], -(data['left_foot_x_values'][num] - data['pelvis_x_values'][num]), 0)
@@ -17,6 +17,8 @@ def update_robot(num):
     # print('R', robot.HipToGround - data['right_foot_z_values'][num], -(data['right_foot_x_values'][num] - data['pelvis_x_values'][num]))
 
     HipAngleL, FootAngleL = inverse_kinematic_y(data['pelvis_y_values'][num])
+    # HipAngleL = -HipAngleL
+    # FootAngleL = -FootAngleL
     HipAngleR, FootAngleR = HipAngleL, FootAngleL
 
     # print('LY', HipAngleL, FootAngleL)
@@ -129,6 +131,6 @@ pattern_init()
 fig_pattern.canvas.mpl_connect('button_press_event', event_handeler)
 fig_pattern.canvas.mpl_connect('key_press_event', key_event_handeler)
 # ani = animation.FuncAnimation(fig_pattern, update_pattern,init_func=pattern_init, frames=data['to'] // sample_ratio, fargs=(data, line, ), interval=20, blit=False, repeat=False)
-ani = animation.FuncAnimation(fig_pattern, update, frames=gen, interval=200, blit=False, repeat=False)
-animation_running = True
+# ani = animation.FuncAnimation(fig_pattern, update, frames=gen, interval=200, blit=False, repeat=False)
+animation_running = False
 plt.show()

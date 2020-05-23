@@ -1,11 +1,13 @@
+
+
 from CoM.robot import *
 import math
 from MotionPattern.plot import *
-import matplotlib.pyplot as plt 
+import matplotlib.pyplot as plt
 from matplotlib import animation
 import sympy as sp
 import time
-import threading 
+import threading
 
 robot = Robot()
 
