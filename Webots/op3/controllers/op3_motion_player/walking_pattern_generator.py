@@ -4,7 +4,6 @@ import matplotlib.pyplot as plt
 import math
 
 Apelvis = 32
-Apelvis = 50 # op3
 Hfoot = 40
 d = 100#200
 l_over_d = 0.45
@@ -13,10 +12,22 @@ Tstride = 1.9 * 1000
 Tstep = 0.95 * 1000
 Tdelay = 0.2 * 1000
 Kdsp = 0.05
-Kdsp = 0.2 # op3
 Tssp = Tstep * (1.0 - Kdsp)
 Tdsp = Tstep * Kdsp
 ALPHApelvis = 0.45
+
+# op3
+Apelvis = 50 # op3
+Hfoot = 40
+d = 100#200
+l_over_d = 0.45
+
+Tstride = 1.9 * 1000
+Tstep = 0.95 * 1000
+Tdelay = 0.2 * 1000
+Kdsp = 0.2 # op3
+Tssp = Tstep * (1.0 - Kdsp)
+Tdsp = Tstep * Kdsp
 
 Fs = 8000
 
@@ -110,9 +121,12 @@ def foot_x_pattern(t, even=True):
 
 def theta_pattern(z_values, max_theta = 0):
     max_z_value = max(z_values)
-    return [max(0, max_theta * (value / max_z_value)) for value in z_values]
+    return [0 for value in z_values]
+    # return [max(0, max_theta * (value / max_z_value)) for value in z_values]
 
 def get_pattern(from_=0, to=10000):
+    global Fs
+    Fs = to
     t = np.arange(from_, to, to / Fs)
     pelvis_y_values = pelvis_y_pattern(t)
     foot_z_values = foot_z_pattern(t)
@@ -132,10 +146,7 @@ def get_pattern(from_=0, to=10000):
 
 if __name__ == "__main__":
 
-    from_ = 0
-    to = 10000
-
-    data = get_pattern(0, 10000)
+    data = get_pattern()
 
     plt.plot(data['t'], np.array(data['pelvis_y_values']) * 50, label='pelvis y / 50')
     plt.plot(data['t'], np.array(data['left_foot_z_values']) * 50, label='left foot z / 50')

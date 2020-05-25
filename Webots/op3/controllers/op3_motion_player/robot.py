@@ -1,36 +1,16 @@
 import math
 import numpy as np
 import controller as webots_controller
-import threading
+import matplotlib.pyplot as plt
+import matplotlib.animation as animation
 
 class Robot:
-    def __init__(self):
+    def __init__(self, accuracy=1, real_time_plotting=False):
+        
+        self.robot = webots_controller.Robot()
 
-        # self.MotorXSize = 20
-        # self.MotorYSize = 40
-        # self.MotorZSize = 40.5
-
-        # self.MotorPZAxis = 9
-        # self.MotorNZAxis = self.MotorZSize - self.MotorPZAxis
-        # self.MotorCenterToAxis = self.MotorZSize / 2 - self.MotorPZAxis
-
-        # self.HipToHip = (67 - 2 * self.MotorCenterToAxis)
-        # self.HipToShoulder = (104 - self.MotorCenterToAxis)
-        # self.HipToHead = (109 - self.MotorCenterToAxis)
-        # self.ShoulderToShoulder = (145 - 2 * (self.MotorYSize/2))
-        # self.ShoulderToArm = (30 + self.MotorYSize/2)
-        # self.ArmToHand = (74 - 2* self.MotorCenterToAxis)
-        # self.HipToLegW = 22
-        # self.HipToLegH = 39
-        # self.HipToKnee = (94 - self.MotorCenterToAxis)
-        # self.LegToKnee = self.HipToKnee - self.HipToLegH
-        # self.HipToAnkle = (149 - self.MotorCenterToAxis)
-        # self.KneeToAnkle = self.HipToAnkle - self.HipToKnee
-        # self.HipToFoot = (197 - self.MotorCenterToAxis)
-        # self.AnkleToFoot = self.HipToFoot - self.HipToAnkle
-        # self.FootToGround = 15
-        # self.HipToGround = self.HipToFoot + self.FootToGround
-
+        self.real_time_plotting = real_time_plotting
+        self.accuracy = accuracy
 
         self.HipToGround = (0.25465 * 1000)
         self.LegToGround = (0.25465 * 1000)
@@ -46,13 +26,6 @@ class Robot:
         self.HipToLegH = self.HipToGround - self.LegToGround
         self.HipToFoot = self.HipToGround - self.FootToGround
 
-        print(self.HipToGround)
-        print(self.LegToKnee)
-        print(self.KneeToAnkle)
-        print(self.AnkleToFoot)
-        print(self.FootToGround)
-        print(self.HipToLegH)
-        print(self.HipToFoot)
 
         motors_names = [
             "ShoulderR",  # ID1
@@ -79,12 +52,26 @@ class Robot:
             "Head"  # ID20
         ]
 
-        self.robot = webots_controller.Robot()
+
+        self.gyro_values = [[0], [0], [0]]
+        self.accelerometer_values = [[0], [0], [0]]
+
+        if self.real_time_plotting:
+            self.time = []
+
+            plt.ion()
+            self.gyro_fig = plt.figure()
+            self.gyro_ax = self.gyro_fig.add_subplot(111)
+
+            self.accelerometer_fig = plt.figure()
+            self.accelerometer_ax = self.accelerometer_fig.add_subplot(111)
+            
+            plt.draw()
+            plt.pause(0.001)
 
         self.motors = {}
         for motor_name in motors_names:
             self.motors[motor_name] = self.robot.getMotor(motor_name)
-
 
         self.accelerometer = self.robot.getAccelerometer('Accelerometer')
         self.gyro = self.robot.getGyro('Gyro')
@@ -92,38 +79,79 @@ class Robot:
         self.accelerometer.enable(1)
         self.gyro.enable(1)
 
-        self.values_file = open('values.txt', 'a+')
+        self.current_time = 0
 
-    def update(self, left_foot_z_value, left_foot_x_value, right_foot_z_value, right_foot_x_value, pelvis_x_value, pelvis_y_value, left_theta, right_theta, duration = 1000):
+        open('local-values.txt', 'w').close
 
-        # print('accelerometer', self.accelerometer.getValues())
-        # print('gyro', self.gyro.getValues())
+    def flush_graphs(self):
+        self.gyro_ax.clear()
+        self.accelerometer_ax.clear()
 
-        self.values_file.write('accelerometer ' + str(self.accelerometer.getValues()))
-        self.values_file.write('\n')
-        self.values_file.write('gyro ' + str(self.gyro.getValues()))
-        self.values_file.write('\n')
+        try:
+            self.gyro_ax.plot(self.time, self.gyro_values[0], label='gyro x')
+            self.gyro_ax.plot(self.time, self.gyro_values[1], label='gyro y')
+            self.gyro_ax.plot(self.time, self.gyro_values[2], label='gyro z')
+            self.gyro_ax.legend()
 
-        Angles = {}
+            self.accelerometer_ax.plot(self.time, self.accelerometer_values[0], label='accelerometer x')
+            self.accelerometer_ax.plot(self.time, self.accelerometer_values[1], label='accelerometer y')
+            self.accelerometer_ax.plot(self.time, self.accelerometer_values[2], label='accelerometer z')
+            self.accelerometer_ax.legend()
+        except:
+            print('error')
 
-        # print('a', self.HipToGround - left_foot_z_value, '   b', -(left_foot_x_value - pelvis_x_value))
-        Angles['LegUpperL'], Angles['LegLowerL'], Angles['AnkleL'] = self.inverse_kinematic_xz(self.HipToGround - left_foot_z_value, -(left_foot_x_value - pelvis_x_value), left_theta)
-        # Angles['LegUpperL'], Angles['LegLowerL'], Angles['AnkleL'] = -Angles['LegUpperL'], -Angles['LegLowerL'], -Angles['AnkleL']
-        Angles['AnkleL'] = -Angles['AnkleL']
+        plt.draw()
+        plt.pause(0.0001)
+
+    def get_ik_angles(self, ik_values):
+
+        left_foot_z_value = ik_values['left_foot_z_value']
+        left_foot_x_value = ik_values['left_foot_x_value']
+        right_foot_z_value = ik_values['right_foot_z_value']
+        right_foot_x_value = ik_values['right_foot_x_value']
+        pelvis_x_value = ik_values['pelvis_x_value']
+        pelvis_y_value = ik_values['pelvis_y_value']
+        left_theta = ik_values['left_theta']
+        right_theta = ik_values['right_theta']
+
+        angles = {}
+
+        a = np.sqrt((self.HipToGround - left_foot_z_value) ** 2 - (-(left_foot_x_value - pelvis_x_value)) ** 2)
+        angles['LegUpperL'], angles['LegLowerL'], angles['AnkleL'] = self.inverse_kinematic_xz(a, -(left_foot_x_value - pelvis_x_value), left_theta)
+        angles['AnkleL'] = -angles['AnkleL']
         
-        # print('a', self.HipToGround - right_foot_z_value, '   b', -(right_foot_x_value - pelvis_x_value))
-        Angles['LegUpperR'], Angles['LegLowerR'], Angles['AnkleR'] = self.inverse_kinematic_xz(self.HipToGround - right_foot_z_value, -(right_foot_x_value - pelvis_x_value), right_theta)
-        Angles['LegUpperR'], Angles['LegLowerR'] = -Angles['LegUpperR'], -Angles['LegLowerR']
+        a = np.sqrt((self.HipToGround - right_foot_z_value) ** 2 - (-(right_foot_x_value - pelvis_x_value)) ** 2)
+        angles['LegUpperR'], angles['LegLowerR'], angles['AnkleR'] = self.inverse_kinematic_xz(a, -(right_foot_x_value - pelvis_x_value), right_theta)
+        angles['LegUpperR'], angles['LegLowerR'] = -angles['LegUpperR'], -angles['LegLowerR']
 
-        Angles['PelvL'], Angles['FootL'] = self.inverse_kinematic_y(pelvis_y_value)
-        Angles['PelvR'], Angles['FootR'] = Angles['PelvL'], Angles['FootL']
+        angles['PelvL'], angles['FootL'] = self.inverse_kinematic_y(pelvis_y_value)
+        angles['PelvR'], angles['FootR'] = angles['PelvL'], angles['FootL']
 
-        # print(Angles)
+        return angles
 
-        [self.motors[motor_name].setPosition(math.radians(Angles[motor_name])) for motor_name in Angles]
+    def apply_angles(self, angles):
+        [self.motors[motor_name].setPosition(math.radians(angles[motor_name])) for motor_name in angles]
 
-        self.robot.step(duration)
+    def update(self):
+        if self.current_time + 1 == len(self.gyro_values[0]): return
 
+        current_gyro_values = self.gyro.getValues()
+        current_accelerometer_values = self.accelerometer.getValues()
+        
+        values_file = open('local-values.txt', 'a')
+        values_file.write('gyro ' + str(current_gyro_values))
+        values_file.write('\n')
+        values_file.write('accelerometer ' + str(current_accelerometer_values))
+        values_file.write('\n')
+        values_file.close()
+
+        [self.gyro_values[idx].append(current_gyro_values[idx]) for idx in range(3)]
+        [self.accelerometer_values[idx].append(current_accelerometer_values[idx]) for idx in range(3)]
+
+    def step(self):
+        self.robot.step(self.accuracy)
+        self.current_time += 1
+        self.update()
 
     def inverse_kinematic_xz(self, a, b, theta):
         theta = math.radians(theta)
@@ -140,7 +168,12 @@ class Robot:
         return math.degrees(Q1), math.degrees(Q2), math.degrees(Q3)
 
     def inverse_kinematic_y(self, dy):
-
         Q1 = np.arcsin((dy) / (self.HipToFoot))
 
         return math.degrees(Q1), math.degrees(Q1)
+
+    def get_sensors(self):
+        return {
+            'gyro': np.array([self.gyro_values[0][-1], self.gyro_values[1][-1], self.gyro_values[2][-1]]),
+            'accelerometer': np.array([self.accelerometer_values[0][-1], self.accelerometer_values[1][-1], self.accelerometer_values[2][-1]]),
+        }
