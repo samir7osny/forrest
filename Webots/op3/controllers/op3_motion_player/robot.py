@@ -111,17 +111,15 @@ class Robot:
         right_foot_x_value = ik_values['right_foot_x_value']
         pelvis_x_value = ik_values['pelvis_x_value']
         pelvis_y_value = ik_values['pelvis_y_value']
-        left_theta = ik_values['left_theta']
-        right_theta = ik_values['right_theta']
 
         angles = {}
 
         a = np.sqrt((self.HipToGround - left_foot_z_value) ** 2 - (-(left_foot_x_value - pelvis_x_value)) ** 2)
-        angles['LegUpperL'], angles['LegLowerL'], angles['AnkleL'] = self.inverse_kinematic_xz(a, -(left_foot_x_value - pelvis_x_value), left_theta)
+        angles['LegUpperL'], angles['LegLowerL'], angles['AnkleL'] = self.inverse_kinematic_xz(a, -(left_foot_x_value - pelvis_x_value))
         angles['AnkleL'] = -angles['AnkleL']
         
         a = np.sqrt((self.HipToGround - right_foot_z_value) ** 2 - (-(right_foot_x_value - pelvis_x_value)) ** 2)
-        angles['LegUpperR'], angles['LegLowerR'], angles['AnkleR'] = self.inverse_kinematic_xz(a, -(right_foot_x_value - pelvis_x_value), right_theta)
+        angles['LegUpperR'], angles['LegLowerR'], angles['AnkleR'] = self.inverse_kinematic_xz(a, -(right_foot_x_value - pelvis_x_value))
         angles['LegUpperR'], angles['LegLowerR'] = -angles['LegUpperR'], -angles['LegLowerR']
 
         angles['PelvL'], angles['FootL'] = self.inverse_kinematic_y(pelvis_y_value)
@@ -153,7 +151,7 @@ class Robot:
         self.current_time += 1
         self.update()
 
-    def inverse_kinematic_xz(self, a, b, theta):
+    def inverse_kinematic_xz(self, a, b, theta = 0):
         theta = math.radians(theta)
         l1, l2, l3 = self.LegToKnee, self.KneeToAnkle, self.AnkleToFoot + self.FootToGround
         a -= self.HipToLegH
