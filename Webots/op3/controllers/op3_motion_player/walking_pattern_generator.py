@@ -59,7 +59,6 @@ class PatternGenerator:
     
     def calculate_Tstride(self):
         walking_freq = (1 / (2 * np.pi)) * np.sqrt(GRAVITY / (self.L / 1000))
-        print(1000 / walking_freq)
         return 1000 / walking_freq
 
     def get_smooth_value(self, period, position, peroid_ratio=0.25, shift=0):
@@ -233,28 +232,6 @@ class PatternGenerator:
             else:
                 return (self.d * self.γpelvis) * self.get_value_from_ranges(t, ranges) + self.d * int(t / self.Tstep) + self.d - self.d / 2
 
-        # if type(t) is not int:
-        #     _time = t
-        #     result = []
-        #     for t in _time:
-
-        #         right_forward = self.foot_forward_displacement(t)
-        #         left_forward = self.foot_forward_displacement(t, False)
-
-        #         min_ = min(right_forward, left_forward)
-        #         max_ = max(right_forward, left_forward)
-
-        #         result.append(self.γpelvis * max_ + (1 - self.γpelvis) * min_)
-
-        #     return result
-        # else:
-        #     right_forward = self.foot_forward_displacement(t)
-        #     left_forward = self.foot_forward_displacement(t, False)
-
-        #     min_ = min(right_forward, left_forward)
-        #     max_ = max(right_forward, left_forward)
-
-        #     return self.γpelvis * max_ + (1 - self.γpelvis) * min_
 
     def foot_forward_displacement(self, t, right=True):
         ranges = [
