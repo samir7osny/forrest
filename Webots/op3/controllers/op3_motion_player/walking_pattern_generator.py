@@ -1,162 +1,308 @@
 import numpy as np
-from numpy import array as arr
 import matplotlib.pyplot as plt
-import math
 
-Apelvis = 32
-Hfoot = 40
-d = 100#200
-l_over_d = 0.45
 
-Tstride = 1.9 * 1000
-Tstep = 0.95 * 1000
-Tdelay = 0.2 * 1000
-Kdsp = 0.05
-Tssp = Tstep * (1.0 - Kdsp)
-Tdsp = Tstep * Kdsp
-ALPHApelvis = 0.45
+DEFAULT_Apelvis = 32
+# DEFAULT_Apelvis = 50 # op3
+DEFAULT_L = 900
+DEFAULT_L = 254 # op3
+DEFAULT_κdsp = 0.05
+DEFAULT_κdsp = 0.2 # op3
+DEFAULT_γpelvis = 0.45
 
-# op3
-Apelvis = 50 # op3
-Hfoot = 40
-d = 100#200
-l_over_d = 0.45
+CONST_Hfoot_ratio = 40 / DEFAULT_L
+CONST_Hfoot_ratio = 30 / DEFAULT_L # op3
+CONST_d_ratio = 200 / DEFAULT_L
+CONST_d_ratio = 50 / DEFAULT_L # op3
 
-Tstride = 1.9 * 1000
-Tstep = 0.95 * 1000
-Tdelay = 0.2 * 1000
-Kdsp = 0.2 # op3
-Tssp = Tstep * (1.0 - Kdsp)
-Tdsp = Tstep * Kdsp
+CONST_Tdelay_ratio = 200 / 1900
 
-Fs = 8000
+GRAVITY = 9.81
 
-def pelvis_y_pattern(t):
-    sine_freq = 1 / ((Tstep - Tdelay) * 2)
-    from_ = t[0]
-    to = t[-1]
-    def one_step(now):
-        nth_step = (now - from_) // Tstep
-        # print(nth_step)
-        sign = 1 if nth_step % 2 == 1 else -1
-        position = now - from_ - (nth_step * Tstep)
-        if (Tstep - Tdelay) / 2 <= position <= (Tstep - Tdelay) / 2 + Tdelay:
-            return sign * Apelvis
-        elif (Tstep - Tdelay) / 2 > position:
-            # print(np.sin(2 * np.pi * sine_freq * position / Fs))
-            return sign * Apelvis * np.sin(2 * np.pi * sine_freq * position)
-        else:
-            position -= Tdelay
-            return sign * Apelvis * np.sin(2 * np.pi * sine_freq * position)
-    return [one_step(time_step) for time_step in t]
+# Apelvis               Lateral swing amplitude of pelvis 32 (mm)
+# Hfoot                 Maximum elevation of foot 40 (mm)
+# d                     Step length (stride/2) 200 (mm)
+# Tstride               Walking period (stride time) 1.9 (s)
+# Tstep                 Step time 0.95 (s)
+# Tdelay                Delay time 0.2 (s)
+# κdsp                  Double support ratio 0.05 (5%)
+# Tssp                  Single support time Tstep * (1.0 - κdsp)
+# Tdsp                  Double support time Tstep * κdsp
+# γpelvis               Forward landing position ratio of the pelvis 0.45
+# L                     The distance from foot to the pelvis 900 (mm)
+class PatternGenerator:
+    def __init__(self, Apelvis=DEFAULT_Apelvis, L=DEFAULT_L, κdsp=DEFAULT_κdsp, γpelvis=DEFAULT_γpelvis):
+        self.Apelvis = Apelvis
+        self.L = L
+        self.κdsp = κdsp
+        self.γpelvis = γpelvis
 
-def foot_z_pattern(t):
-    sine_freq = 1 / ((Tstep - Tdelay - Tdsp) * 2)
-    from_ = t[0]
-    to = t[-1]
-    def one_step(now):
-        nth_step = (now - from_) // Tstep
-        # print(nth_step)
-        sign = 1 if nth_step % 2 == 1 else -1
-        position = now - from_ - (nth_step * Tstep)
-        if 0 <= position <= Tdsp / 2 or Tstep - Tdsp / 2 <= position:
+        self.Hfoot = CONST_Hfoot_ratio * self.L
+        self.d = CONST_d_ratio * self.L
+        self.Tstride = self.calculate_Tstride()
+        self.Tstep = self.Tstride / 2
+        self.Tdelay = CONST_Tdelay_ratio * self.Tstride
+        self.Tssp = self.Tstride * (1 - self.κdsp)
+        self.Tdsp = self.Tstride * self.κdsp
+
+        # print('Apelvis', self.Apelvis)
+        # print('L', self.L)
+        # print('κdsp', self.κdsp)
+        # print('γpelvis', self.γpelvis)
+        # print('Hfoot', self.Hfoot)
+        # print('d', self.d)
+        # print('Tstride', self.Tstride)
+        # print('Tstep', self.Tstep)
+        # print('Tdelay', self.Tdelay)
+        # print('Tssp', self.Tssp)
+        # print('Tdsp', self.Tdsp)
+    
+    def calculate_Tstride(self):
+        walking_freq = (1 / (2 * np.pi)) * np.sqrt(GRAVITY / (self.L / 1000))
+        return 1000 / walking_freq
+
+    def get_smooth_value(self, period, position, peroid_ratio=0.25, shift=0):
+        period = period / 1000
+        full_period = period / peroid_ratio
+        freq = 1 / full_period
+        position = position / 1000
+        position = position % full_period
+        return np.sin(2 * np.pi * freq * position + shift * 2 * np.pi)
+
+    def generate_full_pattern(self, number_of_steps=5):
+
+        t = list(range(int(np.ceil(self.Tstride)) * number_of_steps + 1))
+
+        right_foot_height = self.foot_height(t)
+        left_foot_height = self.foot_height(t, False)
+
+        pelvis_side_displacement = self.pelvis_side_displacement(t)
+
+        right_foot_forward_displacement = self.foot_forward_displacement(t)
+        left_foot_forward_displacement = self.foot_forward_displacement(t, False)
+
+        pelvis_forward_displacement = self.pelvis_forward_displacement(t)
+
+        return t, right_foot_height, left_foot_height, pelvis_side_displacement, right_foot_forward_displacement, left_foot_forward_displacement, pelvis_forward_displacement
+
+    def get_value_from_ranges(self, t, ranges):
+        full_period = np.sum([_range['period'] for _range in ranges])
+        t = t % full_period
+        current_range = None
+        current_range_idx = None
+        cumulative_period = 0
+        for idx, _range in enumerate(ranges):
+            cumulative_period += _range['period']
+            if t <= cumulative_period:
+                current_range = _range
+                current_range_idx = idx
+                break
+        if current_range['type'] == 'zero':
             return 0
-        if (Tstep - Tdelay) / 2 <= position <= (Tstep - Tdelay) / 2 + Tdelay:
-            return sign * Hfoot
-        elif (Tstep - Tdelay) / 2 > position:
-            position -= Tdsp/2
-            return sign * Hfoot * np.sin(2 * np.pi * sine_freq * position)
+        elif current_range['type'] == 'one':
+            return 1
+        elif current_range['type'] == 'neg_one':
+            return -1
+        elif current_range['type'] == 'smooth':
+            prev_non_same_smooth = np.sum([_range['period'] for _range in ranges[: current_range_idx] if _range['type'] != 'smooth' or _range['id'] != current_range['id']])
+            shift = 0 if 'shift' not in current_range else current_range['shift']
+            return self.get_smooth_value(current_range['period'], t - prev_non_same_smooth, current_range['period_ratio'], shift)
+
+    def foot_height(self, t, right=True):
+        ranges = [
+            {
+                'type': 'zero',
+                'period': self.Tdsp / 2
+            },
+            {
+                'type': 'smooth',
+                'period': (self.Tstep - self.Tdelay - self.Tdsp) / 2,
+                'period_ratio': 0.25,
+                'id': 0
+            },
+            {
+                'type': 'one',
+                'period': self.Tdelay
+            },
+            {
+                'type': 'smooth',
+                'period': (self.Tstep - self.Tdelay - self.Tdsp) / 2,
+                'period_ratio': 0.25,
+                'id': 0
+            },
+            {
+                'type': 'zero',
+                'period': self.Tdsp / 2
+            },
+        ]
+
+        if type(t) is not int:
+            _time = t
+            result = []
+            for t in _time:
+
+                if right and int(t / self.Tstep) % 2 == 0: self_period = True
+                elif right: self_period = False
+                elif int(t / self.Tstep) % 2 == 1: self_period = True
+                else: self_period = False
+
+                if self_period:
+                    result.append(self.Hfoot * self.get_value_from_ranges(t, ranges))
+                else: 
+                    result.append(0)
+
+            return result
         else:
-            position -= Tdelay + Tdsp/2
-            return sign * Hfoot * np.sin(2 * np.pi * sine_freq * position)
-    return [one_step(time_step) for time_step in t]
+            if right and int(t / self.Tstep) % 2 == 0: self_period = True
+            elif right: self_period = False
+            elif int(t / self.Tstep) % 2 == 1: self_period = True
+            else: self_period = False
 
-def pelvis_x_pattern(t):
-    cosine_freq = 1 / ((l_over_d * Tstep) * 4)
-    sine_freq = 1 / (((1 - l_over_d) * Tstep) * 4)
-    from_ = t[0]
-    to = t[-1]
-    ref_values = {'last_value': l_over_d * d, 'base_value': l_over_d * d, 'sine_phase': False}
-    def one_step(now, ref_values):
-        # now = max(now - Tstep, 0)
-        if now < (1 - l_over_d) * Tstep: return 0
-        now -= (1 - l_over_d) * Tstep
-        nth_step = (now - from_) // Tstep
-        position = now - from_ - (nth_step * Tstep)
-        if position <= l_over_d * Tstep:
-            if ref_values['sine_phase']:
-                ref_values['base_value'] = ref_values['last_value']
-                ref_values['sine_phase'] = False
-            # position -= (1 - l_over_d) * Tstep
-            # print(nth_step)
-            offset = 0 if nth_step == 0 else l_over_d * d
-            ref_values['last_value'] = ref_values['base_value'] + (l_over_d * d) * -np.cos(2 * np.pi * cosine_freq * position) + offset
-            return ref_values['last_value']
+            if self_period:
+                return self.Hfoot * self.get_value_from_ranges(t, ranges)
+            else: 
+                return 0
+
+    def pelvis_side_displacement(self, t):
+        ranges = [
+            {
+                'type': 'smooth',
+                'period': (self.Tstep - self.Tdelay) / 2,
+                'period_ratio': 0.25,
+                'id': 0
+            },
+            {
+                'type': 'one',
+                'period': self.Tdelay
+            },
+            {
+                'type': 'smooth',
+                'period': (self.Tstep - self.Tdelay) / 2,
+                'period_ratio': 0.25,
+                'id': 0
+            }
+        ]
+
+        if type(t) is not int:
+            _time = t
+            result = []
+            for t in _time:
+
+                if int(t / self.Tstep) % 2 == 0: result.append(self.Apelvis * self.get_value_from_ranges(t, ranges))
+                else: result.append(- self.Apelvis * self.get_value_from_ranges(t, ranges))
+
+            return result
         else:
-            if not ref_values['sine_phase']:
-                ref_values['base_value'] = ref_values['last_value']
-                ref_values['sine_phase'] = True
-            position -= (l_over_d) * Tstep
-            ref_values['last_value'] = ref_values['base_value'] + ((1 - l_over_d) * d) * np.sin(2 * np.pi * sine_freq * position)
-            return ref_values['last_value']
-    return [one_step(time_step, ref_values) for time_step in t]
+            if int(t / self.Tstep) % 2 == 0: return self.Apelvis * self.get_value_from_ranges(t, ranges)
+            else: return - self.Apelvis * self.get_value_from_ranges(t, ranges)
 
-def foot_x_pattern(t, even=True):
-    sine_freq = 1 / ((Tstep - Tdsp) * 2)
-    from_ = t[0]
-    to = t[-1]
-    ref_values = {'last_value': 0, 'base_value': 0}
-    def one_step(now, ref_values):
-        nth_step = (now - from_) // Tstep
-        position = now - from_ - (nth_step * Tstep)
-        if not(Tdsp/2 <= position <= Tstep - Tdsp/2) or (even and nth_step % 2 == 0) or (not even and nth_step % 2 == 1):
-            ref_values['base_value'] = ref_values['last_value']
-            return ref_values['last_value']
+    def pelvis_forward_displacement(self, t):
+        ranges = [
+            {
+                'type': 'smooth',
+                'period': (1 - self.γpelvis) * self.Tstep,
+                'period_ratio': 0.25,
+                'id': 1
+            },
+            {
+                'type': 'smooth',
+                'period': self.γpelvis * self.Tstep,
+                'period_ratio': 0.25,
+                'id': 0,
+                'shift': 0.75
+            }
+        ]
+
+        if type(t) is not int:
+            _time = t
+            result = []
+            for t in _time:
+                t = max(0, t - self.Tstep / 2)
+
+                if (t % self.Tstep) < (1 - self.γpelvis) * self.Tstep:
+                    result.append((self.d * (1 - self.γpelvis)) * self.get_value_from_ranges(t, ranges) + self.d * int(t / self.Tstep))
+                else:
+                    result.append((self.d * self.γpelvis) * self.get_value_from_ranges(t, ranges) + self.d * int(t / self.Tstep) + self.d)
+
+            return result
         else:
-            position -= Tdsp/2
-            offset = 0 if not even and nth_step == 0 else d
-            ref_values['last_value'] = max(0, ref_values['base_value'] + d * -np.cos(2 * np.pi * sine_freq * position) + offset)
-            return ref_values['last_value']
-    return [one_step(time_step, ref_values) for time_step in t]
+            t = max(0, t - self.Tstep / 2)
+            if (t % self.Tstep) < (1 - self.γpelvis) * self.Tstep:
+                return (self.d * (1 - self.γpelvis)) * self.get_value_from_ranges(t, ranges) + self.d * int(t / self.Tstep) - self.d / 2
+            else:
+                return (self.d * self.γpelvis) * self.get_value_from_ranges(t, ranges) + self.d * int(t / self.Tstep) + self.d - self.d / 2
 
-def theta_pattern(z_values, max_theta = 0):
-    max_z_value = max(z_values)
-    return [0 for value in z_values]
-    # return [max(0, max_theta * (value / max_z_value)) for value in z_values]
 
-def get_pattern(from_=0, to=10000):
-    global Fs
-    Fs = to
-    t = np.arange(from_, to, to / Fs)
-    pelvis_y_values = pelvis_y_pattern(t)
-    foot_z_values = foot_z_pattern(t)
+    def foot_forward_displacement(self, t, right=True):
+        ranges = [
+            {
+                'type': 'neg_one',
+                'period': self.Tdsp / 2
+            },
+            {
+                'type': 'smooth',
+                'period': (self.Tstep - self.Tdsp),
+                'period_ratio': 0.5,
+                'id': 0,
+                'shift': -0.25
+            },
+            {
+                'type': 'one',
+                'period': self.Tdsp / 2
+            },
+        ]
+            
+        if type(t) is not int:
+            _time = t
+            result = []
+            for t in _time:
 
-    left_foot_z_values = [max(0, -v) for v in foot_z_values]
-    right_foot_z_values = [max(0, v) for v in foot_z_values]
+                if right and int(t / self.Tstep) % 2 == 0: self_period = True
+                elif right: self_period = False
+                elif int(t / self.Tstep) % 2 == 1: self_period = True
+                else: self_period = False
 
-    left_theta_values = theta_pattern(left_foot_z_values)
-    right_theta_values = theta_pattern(right_foot_z_values)
+                if self_period:
+                    result.append(max(0, self.d * self.get_value_from_ranges(t, ranges) + self.d * int(t / self.Tstep)))
+                else: 
+                    result.append(self.d * int(t / self.Tstep))
 
-    left_foot_x_values = foot_x_pattern(t, False)
-    right_foot_x_values = foot_x_pattern(t, True)
-    # pelvis_x_values = [(lf + rf) / 2 for lf, rf in zip(left_foot_x_values, right_foot_x_values)]
-    pelvis_x_values = pelvis_x_pattern(t)
+            return result
+        else:
+            if right and int(t / self.Tstep) % 2 == 0: self_period = True
+            elif right: self_period = False
+            elif int(t / self.Tstep) % 2 == 1: self_period = True
+            else: self_period = False
 
-    return {'t': t, 'pelvis_y_values': pelvis_y_values, 'foot_z_values': foot_z_values, 'left_foot_z_values': left_foot_z_values, 'right_foot_z_values': right_foot_z_values, 'left_theta_values': left_theta_values, 'right_theta_values': right_theta_values, 'left_foot_x_values': left_foot_x_values, 'right_foot_x_values': right_foot_x_values, 'pelvis_x_values': pelvis_x_values, 'from': from_, 'to': to, 'Hfoot': Hfoot, 'Fs': Fs, 'd': d}
+            if self_period:
+                return max(0, self.d * self.get_value_from_ranges(t, ranges) + self.d * int(t / self.Tstep))
+            else: 
+                return self.d * int(t / self.Tstep)
 
 if __name__ == "__main__":
+        
+    pattern_generator = PatternGenerator()
+    pattern = pattern_generator.generate_full_pattern()
 
-    data = get_pattern()
+    fig = plt.figure()
+    ax = fig.add_subplot(1, 1, 1)
 
-    plt.plot(data['t'], np.array(data['pelvis_y_values']) * 50, label='pelvis y / 50')
-    plt.plot(data['t'], np.array(data['left_foot_z_values']) * 50, label='left foot z / 50')
-    plt.plot(data['t'], np.array(data['right_foot_z_values']) * 50, label='right foot z / 50')
-    plt.plot(data['t'], np.array(data['left_theta_values']) * 100, label='left theta / 100')
-    plt.plot(data['t'], np.array(data['right_theta_values']) * 100, label='right theta / 100')
-    plt.plot(data['t'], data['left_foot_x_values'], label='left foot x')
-    plt.plot(data['t'], data['right_foot_x_values'], label='right foot x')
-    plt.plot(data['t'], data['pelvis_x_values'], label='pelvis x')
+    max_of_first_3 = np.max([np.max(pattern[idx]) for idx in range(1, 4)])
+    max_of_second_3 = np.max([np.max(pattern[idx]) for idx in range(4, 7)])
+    divider = max_of_second_3 / max_of_first_3
+
+    
+    labels = ['right_foot_height', 'left_foot_height', 'pelvis_side_displacement', 'right_foot_forward_displacement', 'left_foot_forward_displacement', 'pelvis_forward_displacement']
+    [plt.plot(pattern[0], pattern[idx], label=labels[idx - 1]) if idx < 4 else plt.plot(pattern[0], np.array(pattern[idx]) / divider, label=labels[idx - 1]) for idx in range(1, len(pattern))]
+
     plt.legend()
-    # plt.axvline(x=5000)
-    # plt.axis([0, to, -Hfoot - 10 - 2000, Hfoot + 10 + 2000])
+
+    start, end = ax.get_xlim()
+    x_ticks = np.arange(0, end + 1, int(np.ceil(pattern_generator.Tstride / 2)))
+    start, end = ax.get_ylim()
+    y_ticks = np.arange(0, end + 1, pattern_generator.d / divider)
+    ax.set_xticks(x_ticks)
+    ax.set_yticks(y_ticks)
+
+    ax.grid()
     plt.show()
