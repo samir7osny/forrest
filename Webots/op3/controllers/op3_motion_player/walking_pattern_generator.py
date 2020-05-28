@@ -291,7 +291,11 @@ if __name__ == "__main__":
     max_of_second_3 = np.max([np.max(pattern[idx]) for idx in range(4, 7)])
     divider = max_of_second_3 / max_of_first_3
 
-    [plt.plot(pattern[0], pattern[idx]) if idx < 4 else plt.plot(pattern[0], np.array(pattern[idx]) / divider) for idx in range(1, len(pattern))]
+    
+    labels = ['right_foot_height', 'left_foot_height', 'pelvis_side_displacement', 'right_foot_forward_displacement', 'left_foot_forward_displacement', 'pelvis_forward_displacement']
+    [plt.plot(pattern[0], pattern[idx], label=labels[idx - 1]) if idx < 4 else plt.plot(pattern[0], np.array(pattern[idx]) / divider, label=labels[idx - 1]) for idx in range(1, len(pattern))]
+
+    plt.legend()
 
     start, end = ax.get_xlim()
     x_ticks = np.arange(0, end + 1, int(np.ceil(pattern_generator.Tstride / 2)))
