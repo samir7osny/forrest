@@ -8,7 +8,6 @@ class Robot:
     def __init__(self, accuracy=1, real_time_plotting=False):
         
         self.robot = webots_controller.Robot()
-
         self.real_time_plotting = real_time_plotting
         self.accuracy = accuracy
 
@@ -19,6 +18,7 @@ class Robot:
         self.FootToGround = (0.0340148 * 1000)
 
         self.HipToGround = self.HipToGround
+        self.HipToLeg = self.HipToGround - self.LegToGround
         self.LegToKnee = self.LegToGround - self.kneeToGround
         self.KneeToAnkle = self.kneeToGround - self.AnkleToGround
         self.AnkleToFoot = self.AnkleToGround - self.FootToGround
@@ -83,6 +83,12 @@ class Robot:
 
         open('local-values.txt', 'w').close
 
+    def reset(self):
+        self.gyro_values = [[0], [0], [0]]
+        self.accelerometer_values = [[0], [0], [0]]
+
+        self.current_time = 0
+
     def flush_graphs(self):
         self.gyro_ax.clear()
         self.accelerometer_ax.clear()
@@ -122,8 +128,11 @@ class Robot:
         angles['LegUpperR'], angles['LegLowerR'], angles['AnkleR'] = self.inverse_kinematic_xz(a, -(right_foot_x_value - pelvis_x_value))
         angles['LegUpperR'], angles['LegLowerR'] = -angles['LegUpperR'], -angles['LegLowerR']
 
-        angles['PelvL'], angles['FootL'] = self.inverse_kinematic_y(pelvis_y_value)
-        angles['PelvR'], angles['FootR'] = angles['PelvL'], angles['FootL']
+        a = self.HipToLeg + self.LegToKnee * np.cos(np.radians(angles['LegUpperL'])) + self.KneeToAnkle * np.cos(np.radians(angles['LegLowerL']))  + self.AnkleToFoot * np.cos(np.radians(angles['AnkleL']))
+        angles['PelvL'], angles['FootL'] = self.inverse_kinematic_y(pelvis_y_value, a)
+        a = self.HipToLeg + self.LegToKnee * np.cos(np.radians(angles['LegUpperR'])) + self.KneeToAnkle * np.cos(np.radians(angles['LegLowerR']))  + self.AnkleToFoot * np.cos(np.radians(angles['AnkleR']))
+        angles['PelvR'], angles['FootR'] = self.inverse_kinematic_y(pelvis_y_value, a)
+        # angles['PelvR'], angles['FootR'] = angles['PelvL'], angles['FootL']
 
         return angles
 
@@ -165,8 +174,8 @@ class Robot:
 
         return math.degrees(Q1), math.degrees(Q2), math.degrees(Q3)
 
-    def inverse_kinematic_y(self, dy):
-        Q1 = np.arcsin((dy) / (self.HipToFoot))
+    def inverse_kinematic_y(self, dy, a):
+        Q1 = np.arcsin((dy) / a)
 
         return math.degrees(Q1), math.degrees(Q1)
 

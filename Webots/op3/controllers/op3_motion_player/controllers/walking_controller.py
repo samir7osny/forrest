@@ -19,8 +19,9 @@ class WalkingController(_controller):
             'right_foot_x_values': right_foot_forward_displacement,
             'pelvis_y_values': pelvis_side_displacement
         }
+        self.name = 'WalkingController'
 
-    def get_step(self, sensors):
+    def get_step(self):
         left_foot_z_value = self.data['left_foot_z_values'][self.current_time]
         left_foot_x_value = self.data['left_foot_x_values'][self.current_time]
         pelvis_x_value = self.data['pelvis_x_values'][self.current_time]
