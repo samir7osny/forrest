@@ -5,17 +5,20 @@ from controllers.base_controller import BaseController
 from controllers.walking_controller import WalkingController
 from controllers.inclination_pitch_controller import InclinationPitchController
 from controllers.inclination_roll_controller import InclinationRollController
+from controllers.landing_momentum_controller import LandingMomentumController
 
 base_controller = BaseController()
 walking_controller = WalkingController()
 inclination_pitch_controller = InclinationPitchController()
 inclination_roll_controller = InclinationRollController()
+landing_momentum_controller = LandingMomentumController()
 
 controllers = [
-    #base_controller,
+    base_controller,
     #inclination_pitch_controller,
     #inclination_roll_controller,
-    #walking_controller,
+    landing_momentum_controller,
+    walking_controller,
 ]
 base_controller.priority = 0
 inclination_pitch_controller.priority = 1
@@ -23,8 +26,6 @@ inclination_roll_controller.priority = 1
 walking_controller.priority = 2
 # DEF op3 Robot > Solid > HingeJoint > Solid > HingeJoint > Solid > HingeJoint > Solid > HingeJoint > Solid > HingeJoint > Solid > HingeJoint > Solid > TouchSensor
 robot = Robot(accuracy=1)
-F = robot.robot.getTouchSensor('ForceFootR')
-F.enable(1)
 changed = False
 while True:
     ik = {}
@@ -65,7 +66,7 @@ while True:
         ik_angles = robot.get_ik_angles(ik)
         for angle_name in ik_angles:
             angles[angle_name] = ik_angles[angle_name] + (angles[angle_name] if angle_name in angles else 0)
-    print(F.getValues())
+    # print(robot.get_sensors()['touch_sensor'])
     robot.apply_angles(angles)
     robot.step()
         

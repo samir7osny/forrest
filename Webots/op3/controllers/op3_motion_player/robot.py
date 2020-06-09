@@ -55,6 +55,16 @@ class Robot:
 
         self.gyro_values = [[0], [0], [0]]
         self.accelerometer_values = [[0], [0], [0]]
+        self.touch_sensors_values = {
+            'RFR': [[0, 0, 0]],
+            'RFL': [[0, 0, 0]],
+            'RBR': [[0, 0, 0]],
+            'RBL': [[0, 0, 0]],
+            'LFR': [[0, 0, 0]],
+            'LFL': [[0, 0, 0]],
+            'LBR': [[0, 0, 0]],
+            'LBL': [[0, 0, 0]],
+        }
 
         if self.real_time_plotting:
             self.time = []
@@ -75,13 +85,24 @@ class Robot:
 
         self.accelerometer = self.robot.getAccelerometer('Accelerometer')
         self.gyro = self.robot.getGyro('Gyro')
+        self.touch_sensors = {
+            'RFR': self.robot.getTouchSensor('RFR'),
+            'RFL': self.robot.getTouchSensor('RFL'),
+            'RBR': self.robot.getTouchSensor('RBR'),
+            'RBL': self.robot.getTouchSensor('RBL'),
+            'LFR': self.robot.getTouchSensor('LFR'),
+            'LFL': self.robot.getTouchSensor('LFL'),
+            'LBR': self.robot.getTouchSensor('LBR'),
+            'LBL': self.robot.getTouchSensor('LBL'),
+        }
 
         self.accelerometer.enable(1)
         self.gyro.enable(1)
+        [self.touch_sensors[sensor_name].enable(1) for sensor_name in self.touch_sensors]
 
         self.current_time = 0
 
-        open('local-values.txt', 'w').close
+        # open('local-values.txt', 'w').close
 
     def reset(self):
         self.gyro_values = [[0], [0], [0]]
@@ -144,16 +165,18 @@ class Robot:
 
         current_gyro_values = self.gyro.getValues()
         current_accelerometer_values = self.accelerometer.getValues()
+        current_touch_sensor_values = {sensor_name: self.touch_sensors[sensor_name].getValues() for sensor_name in self.touch_sensors}
         
-        values_file = open('local-values.txt', 'a')
-        values_file.write('gyro ' + str(current_gyro_values))
-        values_file.write('\n')
-        values_file.write('accelerometer ' + str(current_accelerometer_values))
-        values_file.write('\n')
-        values_file.close()
+        # values_file = open('local-values.txt', 'a')
+        # values_file.write('gyro ' + str(current_gyro_values))
+        # values_file.write('\n')
+        # values_file.write('accelerometer ' + str(current_accelerometer_values))
+        # values_file.write('\n')
+        # values_file.close()
 
         [self.gyro_values[idx].append(current_gyro_values[idx]) for idx in range(3)]
         [self.accelerometer_values[idx].append(current_accelerometer_values[idx]) for idx in range(3)]
+        [self.touch_sensors_values[sensor_name].append(current_touch_sensor_values[sensor_name]) for sensor_name in self.touch_sensors]
 
     def step(self):
         self.robot.step(self.accuracy)
@@ -183,4 +206,5 @@ class Robot:
         return {
             'gyro': np.array([self.gyro_values[0][-1], self.gyro_values[1][-1], self.gyro_values[2][-1]]),
             'accelerometer': np.array([self.accelerometer_values[0][-1], self.accelerometer_values[1][-1], self.accelerometer_values[2][-1]]),
+            'touch_sensor': {sensor_name: self.touch_sensors_values[sensor_name][-1] for sensor_name in self.touch_sensors_values}
         }
