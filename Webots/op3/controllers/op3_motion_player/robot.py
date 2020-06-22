@@ -98,7 +98,7 @@ class Robot:
 
         self.accelerometer.enable(1)
         self.gyro.enable(1)
-        [self.touch_sensors[sensor_name].enable(1) for sensor_name in self.touch_sensors]
+        [self.touch_sensors[sensor_name].enable(1) for sensor_name in self.touch_sensors if self.touch_sensors[sensor_name]]
 
         self.current_time = 0
 
@@ -165,7 +165,7 @@ class Robot:
 
         current_gyro_values = self.gyro.getValues()
         current_accelerometer_values = self.accelerometer.getValues()
-        current_touch_sensor_values = {sensor_name: self.touch_sensors[sensor_name].getValues() for sensor_name in self.touch_sensors}
+        current_touch_sensor_values = {sensor_name: self.touch_sensors[sensor_name].getValues() if self.touch_sensors[sensor_name] else [0, 0, 0] for sensor_name in self.touch_sensors}
         
         # values_file = open('local-values.txt', 'a')
         # values_file.write('gyro ' + str(current_gyro_values))
