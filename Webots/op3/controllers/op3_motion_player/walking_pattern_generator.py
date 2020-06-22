@@ -71,19 +71,81 @@ class PatternGenerator:
 
     def generate_full_pattern(self, number_of_steps=5):
 
-        t = list(range(int(np.ceil(self.Tstride)) * number_of_steps + 1))
+        # t = list(range(int(np.ceil(self.Tstride)) * number_of_steps + 1))
 
-        right_foot_height = self.foot_height(t)
-        left_foot_height = self.foot_height(t, False)
+        # right_foot_height = self.foot_height(t)
+        # left_foot_height = self.foot_height(t, False)
+
+        # pelvis_side_displacement = self.pelvis_side_displacement(t)
+
+        # right_foot_forward_displacement = self.foot_forward_displacement(t)
+        # left_foot_forward_displacement = self.foot_forward_displacement(t, False)
+
+        # pelvis_forward_displacement = self.pelvis_forward_displacement(t)
+
+        # return t, right_foot_height, left_foot_height, pelvis_side_displacement, right_foot_forward_displacement, left_foot_forward_displacement, pelvis_forward_displacement
+
+        right_foot_height = np.array([])
+        left_foot_height = np.array([])
+        pelvis_side_displacement = np.array([])
+        right_foot_forward_displacement = np.array([])
+        left_foot_forward_displacement = np.array([])
+        pelvis_forward_displacement = np.array([])
+
+        full_pattern = [right_foot_height, left_foot_height, pelvis_side_displacement, right_foot_forward_displacement, left_foot_forward_displacement, pelvis_forward_displacement]
+
+        for step in range(number_of_steps * 2):
+
+            right = step % 2 == 0
+
+            stoping_step = step == (number_of_steps * 2 - 1)
+
+            s_full_pattern = self.get_step(right=right, stoping_step=stoping_step)
+
+            for pattern_idx in range(len(full_pattern)):
+                offset = full_pattern[pattern_idx][-1] - s_full_pattern[pattern_idx][0] if len(full_pattern[pattern_idx]) > 0 else 0
+                # corrector = -s_full_pattern[pattern_idx][0] if s_full_pattern[pattern_idx][0] < 0 else 0
+                full_pattern[pattern_idx] = np.concatenate((full_pattern[pattern_idx], s_full_pattern[pattern_idx] + offset))
+
+        right_foot_height, left_foot_height, pelvis_side_displacement, right_foot_forward_displacement, left_foot_forward_displacement, pelvis_forward_displacement = full_pattern
+
+        right_foot_forward_displacement[right_foot_forward_displacement < 0] = 0
+        left_foot_forward_displacement[left_foot_forward_displacement < 0] = 0
+        pelvis_forward_displacement[pelvis_forward_displacement < 0] = 0
+
+        t = list(range(int(np.ceil(self.Tstride)) * number_of_steps))
+        return t, right_foot_height, left_foot_height, pelvis_side_displacement, right_foot_forward_displacement, left_foot_forward_displacement, pelvis_forward_displacement
+
+    def get_step(self, right=True, stoping_step=False):
+        start = 0
+        end = int(np.ceil(self.Tstride)) // 2
+        
+        t = list(range(start, end))
+        
+        if stoping_step:
+            t_ = np.array(t)
+            t_[len(t) // 2: ] = t_[len(t) // 2 - 1]
+            t_ = list(t_)
+        else:
+            t_ = t
+
+        right_foot_height = self.foot_height(t, right=True)
+        left_foot_height = self.foot_height(t, right=False)
+
+        if not right: right_foot_height, left_foot_height = left_foot_height, right_foot_height
 
         pelvis_side_displacement = self.pelvis_side_displacement(t)
 
-        right_foot_forward_displacement = self.foot_forward_displacement(t)
-        left_foot_forward_displacement = self.foot_forward_displacement(t, False)
+        if not right: pelvis_side_displacement = pelvis_side_displacement * -1
 
-        pelvis_forward_displacement = self.pelvis_forward_displacement(t)
+        right_foot_forward_displacement = self.foot_forward_displacement(t_, right=True)
+        left_foot_forward_displacement = self.foot_forward_displacement(t_, right=False)
+        
+        if not right: right_foot_forward_displacement, left_foot_forward_displacement = left_foot_forward_displacement, right_foot_forward_displacement
 
-        return t, right_foot_height, left_foot_height, pelvis_side_displacement, right_foot_forward_displacement, left_foot_forward_displacement, pelvis_forward_displacement
+        pelvis_forward_displacement = self.pelvis_forward_displacement(t_)
+
+        return right_foot_height, left_foot_height, pelvis_side_displacement, right_foot_forward_displacement, left_foot_forward_displacement, pelvis_forward_displacement
 
     def get_value_from_ranges(self, t, ranges):
         full_period = np.sum([_range['period'] for _range in ranges])
@@ -151,7 +213,7 @@ class PatternGenerator:
                 else: 
                     result.append(0)
 
-            return result
+            return np.array(result)
         else:
             if right and int(t / self.Tstep) % 2 == 0: self_period = True
             elif right: self_period = False
@@ -191,7 +253,7 @@ class PatternGenerator:
                 if int(t / self.Tstep) % 2 == 0: result.append(self.Apelvis * self.get_value_from_ranges(t, ranges))
                 else: result.append(- self.Apelvis * self.get_value_from_ranges(t, ranges))
 
-            return result
+            return np.array(result)
         else:
             if int(t / self.Tstep) % 2 == 0: return self.Apelvis * self.get_value_from_ranges(t, ranges)
             else: return - self.Apelvis * self.get_value_from_ranges(t, ranges)
@@ -202,7 +264,7 @@ class PatternGenerator:
                 'type': 'smooth',
                 'period': (1 - self.γpelvis) * self.Tstep,
                 'period_ratio': 0.25,
-                'id': 1
+                'id': 1,
             },
             {
                 'type': 'smooth',
@@ -217,14 +279,13 @@ class PatternGenerator:
             _time = t
             result = []
             for t in _time:
-                t = max(0, t - self.Tstep / 2)
 
                 if (t % self.Tstep) < (1 - self.γpelvis) * self.Tstep:
-                    result.append((self.d * (1 - self.γpelvis)) * self.get_value_from_ranges(t, ranges) + self.d * int(t / self.Tstep))
+                    result.append((self.d * (1 - self.γpelvis)) * self.get_value_from_ranges(t, ranges) + self.d * int(t / self.Tstep) - (1 - self.γpelvis) * self.d)
                 else:
-                    result.append((self.d * self.γpelvis) * self.get_value_from_ranges(t, ranges) + self.d * int(t / self.Tstep) + self.d)
+                    result.append((self.d * self.γpelvis) * self.get_value_from_ranges(t, ranges) + self.d * int(t / self.Tstep) + self.γpelvis * self.d)
 
-            return result
+            return np.array(result)
         else:
             t = max(0, t - self.Tstep / 2)
             if (t % self.Tstep) < (1 - self.γpelvis) * self.Tstep:
@@ -263,11 +324,11 @@ class PatternGenerator:
                 else: self_period = False
 
                 if self_period:
-                    result.append(max(0, self.d * self.get_value_from_ranges(t, ranges) + self.d * int(t / self.Tstep)))
+                    result.append((self.d * self.get_value_from_ranges(t, ranges) + self.d * int(t / self.Tstep)))
                 else: 
                     result.append(self.d * int(t / self.Tstep))
 
-            return result
+            return np.array(result)
         else:
             if right and int(t / self.Tstep) % 2 == 0: self_period = True
             elif right: self_period = False
@@ -275,7 +336,7 @@ class PatternGenerator:
             else: self_period = False
 
             if self_period:
-                return max(0, self.d * self.get_value_from_ranges(t, ranges) + self.d * int(t / self.Tstep))
+                return  (self.d * self.get_value_from_ranges(t, ranges) + self.d * int(t / self.Tstep))
             else: 
                 return self.d * int(t / self.Tstep)
 
@@ -287,8 +348,8 @@ if __name__ == "__main__":
     fig = plt.figure()
     ax = fig.add_subplot(1, 1, 1)
 
-    max_of_first_3 = np.max([np.max(pattern[idx]) for idx in range(1, 4)])
-    max_of_second_3 = np.max([np.max(pattern[idx]) for idx in range(4, 7)])
+    max_of_first_3 = np.max([np.max(np.abs(pattern[idx])) for idx in range(1, 4)])
+    max_of_second_3 = np.max([np.max(np.abs(pattern[idx])) for idx in range(4, 7)])
     divider = max_of_second_3 / max_of_first_3
 
     
