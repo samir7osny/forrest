@@ -1,2 +1,25 @@
 __py*
 local*
+# See https://help.github.com/articles/ignoring-files/ for more about ignoring files.
+
+# dependencies
+/windows-application/node_modules
+/windows-application/.pnp
+/windows-application.pnp.js
+
+# testing
+/windows-application/coverage
+
+# production
+/windows-application/build
+
+# misc
+/windows-application.DS_Store
+/windows-application.env.local
+/windows-application.env.development.local
+/windows-application.env.test.local
+/windows-application.env.production.local
+
+/windows-applicationnpm-debug.log*
+/windows-applicationyarn-debug.log*
+/windows-applicationyarn-error.log*
