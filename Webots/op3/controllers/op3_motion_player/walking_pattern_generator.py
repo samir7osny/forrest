@@ -59,6 +59,8 @@ class PatternGenerator:
     
     def calculate_Tstride(self):
         walking_freq = (1 / (2 * np.pi)) * np.sqrt(GRAVITY / (self.L / 1000))
+
+        print(1000 / walking_freq)
         return 1000 / walking_freq
 
     def get_smooth_value(self, period, position, peroid_ratio=0.25, shift=0):

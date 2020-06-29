@@ -144,6 +144,7 @@ class Robot:
 
         current_gyro_values = self.gyro.getValues()
         current_accelerometer_values = self.accelerometer.getValues()
+        # print(current_accelerometer_values)
         
         values_file = open('local-values.txt', 'a')
         values_file.write('gyro ' + str(current_gyro_values))

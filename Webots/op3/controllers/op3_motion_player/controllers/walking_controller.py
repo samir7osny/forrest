@@ -8,7 +8,7 @@ class WalkingController(_controller):
 
         pattern_generator = PatternGenerator()
 
-        t, right_foot_height, left_foot_height, pelvis_side_displacement, right_foot_forward_displacement, left_foot_forward_displacement, pelvis_forward_displacement = pattern_generator.generate_full_pattern(number_of_steps=15)
+        t, right_foot_height, left_foot_height, pelvis_side_displacement, right_foot_forward_displacement, left_foot_forward_displacement, pelvis_forward_displacement = pattern_generator.generate_full_pattern(number_of_steps=25)
 
         self.data = {
             't': t,
@@ -19,6 +19,9 @@ class WalkingController(_controller):
             'right_foot_x_values': right_foot_forward_displacement,
             'pelvis_y_values': pelvis_side_displacement
         }
+
+        # print(len(self.data['t']))
+        # print(len(self.data['left_foot_z_values']))
         self.name = 'WalkingController'
 
     def get_step(self):

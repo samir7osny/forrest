@@ -65,4 +65,5 @@ class InclinationRollController(_controller):
 
     @property
     def is_finished(self):
-        return abs(self.tilt_angles[0]) > 25 or (round(abs(self.tilt_angles[0]), 1) < 0.2 and round(np.max([abs(angles[1] - self.tilt_angles[0]) for angles in self.last_tilt_angles]), 1) == 0)
+        # return abs(self.tilt_angles[0]) > 25 or (round(abs(self.tilt_angles[0]), 1) < 0.2 and round(np.max([abs(angles[1] - self.tilt_angles[0]) for angles in self.last_tilt_angles]), 1) == 0)
+        return False

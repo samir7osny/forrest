@@ -39,4 +39,5 @@ class InclinationPitchController(_controller):
 
     @property
     def is_finished(self):
-        return abs(self.tilt_angles[1]) > 25 or (round(abs(self.tilt_angles[1]), 1) < 0.2 and round(np.max([abs(angles[1] - self.tilt_angles[1]) for angles in self.last_tilt_angles]), 1) == 0)
+        # return abs(self.tilt_angles[1]) > 25 or (round(abs(self.tilt_angles[1]), 1) < 0.2 and round(np.max([abs(angles[1] - self.tilt_angles[1]) for angles in self.last_tilt_angles]), 1) == 0)
+        return False

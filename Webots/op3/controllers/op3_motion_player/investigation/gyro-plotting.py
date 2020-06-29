@@ -1,7 +1,7 @@
 import numpy as np
 import matplotlib.pyplot as plt
 
-file = open('local-values-1.txt', 'r')
+file = open('local-values-straight.txt', 'r')
 
 gyro_lines = [line for line in file.readlines() if 'gyro' in line]
 
@@ -10,7 +10,8 @@ gyro_values = [np.array(eval(line[len('gyro '): ])) if 'nan' not in line else np
 last_values = np.array([0, 0, 0])
 values = []
 for t, _values in enumerate(gyro_values):
-    current_values = last_values + np.degrees(_values * (1 / 1000))
+    delta = (1 / 1000) * ((_values + gyro_values[max(t - 1, 0)]) / 2)
+    current_values = last_values + np.degrees(delta)
     values.append(current_values)
     last_values = current_values
 
@@ -38,9 +39,10 @@ figure.show()
 
 figure = plt.figure(2)
 plt.plot(msecs, x_values, label='x values')
-plt.plot(msecs, y_values, label='y values')
-plt.plot(msecs, z_values, label='z values')
+# plt.plot(msecs, y_values, label='y values')
+# plt.plot(msecs, z_values, label='z values')
 plt.legend()
+plt.grid()
 figure.show()
 
 plt.show()

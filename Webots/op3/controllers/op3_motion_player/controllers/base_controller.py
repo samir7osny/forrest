@@ -22,4 +22,4 @@ class BaseController(_controller):
 
     @property
     def is_finished(self):
-        return True
+        return False
