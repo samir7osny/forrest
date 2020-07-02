@@ -11,7 +11,7 @@ class BaseController(_controller):
         
         return {
             'ik': {
-                'left_foot_z_value': 10,
+                'left_foot_z_value': 15,
                 'left_foot_x_value': 0,
                 'right_foot_z_value': 10,
                 'right_foot_x_value': 0,

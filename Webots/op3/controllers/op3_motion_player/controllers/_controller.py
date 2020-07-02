@@ -7,7 +7,10 @@ class _controller:
         self.priority = -1
         self.name = 'controller'
 
-    def update(self, sensors):
+    def attach(self, robot):
+        self.robot = robot
+
+    def update(self):
         pass
 
     def get_step(self):

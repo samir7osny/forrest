@@ -3,11 +3,22 @@ import numpy as np
 import controller as webots_controller
 import matplotlib.pyplot as plt
 import matplotlib.animation as animation
+import pickle
+from pytransform3d.rotations import *
 
 class Robot:
     def __init__(self, accuracy=1, real_time_plotting=False):
         
-        self.robot = webots_controller.Robot()
+        self.robot = webots_controller.Supervisor()
+        
+
+        if self.robot.getSupervisor():
+            self.supervised = True
+            self.robot_node = self.robot.getFromDef("OP3")
+            # self.trans_field = self.robot_node.getField("translation")
+        else:
+            self.supervised = False
+        
         self.real_time_plotting = real_time_plotting
         self.accuracy = accuracy
 
@@ -35,8 +46,8 @@ class Robot:
             "ArmLowerR",  # ID5
             "ArmLowerL",  # ID6
 
-            # "PelvYR",  # ID7
-            # "PelvYL",  # ID8
+            "PelvYR",  # ID7
+            "PelvYL",  # ID8
             "PelvR",  # ID9
             "PelvL",  # ID10
             "LegUpperR",  # ID11
@@ -52,32 +63,7 @@ class Robot:
             "Head"  # ID20
         ]
 
-
-        self.gyro_values = [[0], [0], [0]]
-        self.accelerometer_values = [[0], [0], [0]]
-        self.touch_sensors_values = {
-            'RFR': [[0, 0, 0]],
-            'RFL': [[0, 0, 0]],
-            'RBR': [[0, 0, 0]],
-            'RBL': [[0, 0, 0]],
-            'LFR': [[0, 0, 0]],
-            'LFL': [[0, 0, 0]],
-            'LBR': [[0, 0, 0]],
-            'LBL': [[0, 0, 0]],
-        }
-
-        if self.real_time_plotting:
-            self.time = []
-
-            plt.ion()
-            self.gyro_fig = plt.figure()
-            self.gyro_ax = self.gyro_fig.add_subplot(111)
-
-            self.accelerometer_fig = plt.figure()
-            self.accelerometer_ax = self.accelerometer_fig.add_subplot(111)
-            
-            plt.draw()
-            plt.pause(0.001)
+        self.reset()
 
         self.motors = {}
         for motor_name in motors_names:
@@ -85,50 +71,36 @@ class Robot:
 
         self.accelerometer = self.robot.getAccelerometer('Accelerometer')
         self.gyro = self.robot.getGyro('Gyro')
-        self.touch_sensors = {
-            'RFR': self.robot.getTouchSensor('RFR'),
-            'RFL': self.robot.getTouchSensor('RFL'),
-            'RBR': self.robot.getTouchSensor('RBR'),
-            'RBL': self.robot.getTouchSensor('RBL'),
-            'LFR': self.robot.getTouchSensor('LFR'),
-            'LFL': self.robot.getTouchSensor('LFL'),
-            'LBR': self.robot.getTouchSensor('LBR'),
-            'LBL': self.robot.getTouchSensor('LBL'),
-        }
 
         self.accelerometer.enable(1)
         self.gyro.enable(1)
-        [self.touch_sensors[sensor_name].enable(1) for sensor_name in self.touch_sensors]
 
         self.current_time = 0
 
-        # open('local-values.txt', 'w').close
+        open('local-values.txt', 'w').close()
 
     def reset(self):
-        self.gyro_values = [[0], [0], [0]]
-        self.accelerometer_values = [[0], [0], [0]]
+        self.gyro_values = []
+        self.accelerometer_values = []
+        
+        self.corrected_accelerometer_values = []
+
+        self.tilt_angles = []
+        self.velocities = []
+        self.positions = []
 
         self.current_time = 0
 
-    def flush_graphs(self):
-        self.gyro_ax.clear()
-        self.accelerometer_ax.clear()
-
-        try:
-            self.gyro_ax.plot(self.time, self.gyro_values[0], label='gyro x')
-            self.gyro_ax.plot(self.time, self.gyro_values[1], label='gyro y')
-            self.gyro_ax.plot(self.time, self.gyro_values[2], label='gyro z')
-            self.gyro_ax.legend()
-
-            self.accelerometer_ax.plot(self.time, self.accelerometer_values[0], label='accelerometer x')
-            self.accelerometer_ax.plot(self.time, self.accelerometer_values[1], label='accelerometer y')
-            self.accelerometer_ax.plot(self.time, self.accelerometer_values[2], label='accelerometer z')
-            self.accelerometer_ax.legend()
-        except:
-            print('error')
-
-        plt.draw()
-        plt.pause(0.0001)
+        if self.supervised:
+            self.actual_position = [np.array(self.robot_node.getPosition())]
+            mat = self.robot_node.getOrientation()
+            mat = np.reshape(mat, (3, 3))
+            or_x = np.arctan2(mat[2, 1], mat[2, 2])
+            or_y = np.arctan2(-mat[2, 0], np.sqrt(mat[2, 1]**2 + mat[2, 2]**2))
+            or_z = np.arctan2(mat[1, 0], mat[0, 0])
+            self.orientation = [np.array([or_x, or_y, or_z])]
+            # self.actual_velocities = [np.array(self.robot_node.getVelocity())]
+            self.actual_velocities = []
 
     def get_ik_angles(self, ik_values):
 
@@ -160,23 +132,97 @@ class Robot:
     def apply_angles(self, angles):
         [self.motors[motor_name].setPosition(math.radians(angles[motor_name])) for motor_name in angles]
 
-    def update(self):
-        if self.current_time + 1 == len(self.gyro_values[0]): return
+    # def logger(self, current_gyro_values, current_accelerometer_values):
+    #     values_file = open('local-values.txt', 'a')
+    #     values_file.write('gyro ' + str(current_gyro_values))
+    #     values_file.write('\n')
+    #     values_file.write('accelerometer ' + str(current_accelerometer_values))
+    #     values_file.write('\n')
+    #     values_file.close()
 
+    def accelerometer_corrector(self, tilt_angles, accelerometer_values):
+        
+        factor = np.array([-1, -1, -1])
+        # factor = np.array([1, 1, 1])
+        # factor = np.array([0, 0, 0])
+        angles = tilt_angles * factor
+        # rot_matrix_x = np.array(
+        #     [
+        #         [1, 0, 0],
+        #         [0, np.cos(angles[0]), -np.sin(angles[0])],
+        #         [0, np.sin(angles[0]), np.cos(angles[0])],
+        #     ]
+        # )
+        # rot_matrix_y = np.array(
+        #     [
+        #         [np.cos(angles[1]), 0, np.sin(angles[1])],
+        #         [0, 1, 0],
+        #         [-np.sin(angles[1]), 0, np.cos(angles[1])],
+        #     ]
+        # )
+        # rot_matrix_z = np.array(
+        #     [
+        #         [np.cos(angles[2]), -np.sin(angles[2]), 0],
+        #         [np.sin(angles[2]), np.cos(angles[2]), 0],
+        #         [0, 0, 1],
+        #     ]
+        # )
+        # rot_mat = rot_matrix_x
+        # rot_mat = np.matmul(rot_matrix_y, rot_mat)
+        # rot_mat = np.matmul(rot_matrix_z, rot_mat)
+        
+        rot_mat = matrix_from_euler_xyz(angles)
+        accelerometer_values = np.matmul(rot_mat, accelerometer_values)
+
+        accelerometer_values -= np.array([5.00201980e-04, -4.10223144e-06, 9.81])
+
+        return accelerometer_values
+
+    def supervised_update(self):
+        self.actual_position.append(np.array(self.robot_node.getPosition()) - self.actual_position[0])
+        
+        mat = self.robot_node.getOrientation()
+        mat = np.reshape(mat, (3, 3))
+        or_x = np.arctan2(mat[2, 1], mat[2, 2])
+        or_y = np.arctan2(-mat[2, 0], np.sqrt(mat[2, 1]**2 + mat[2, 2]**2))
+        or_z = np.arctan2(mat[1, 0], mat[0, 0])
+        self.orientation.append(np.array([or_x, or_y, or_z]) - self.orientation[0])
+
+        self.actual_velocities.append(np.array(self.robot_node.getVelocity()))
+
+    def update(self):
+        # already updated
+        if self.current_time + 1 == len(self.gyro_values): return
+
+        # new values
         current_gyro_values = self.gyro.getValues()
         current_accelerometer_values = self.accelerometer.getValues()
-        current_touch_sensor_values = {sensor_name: self.touch_sensors[sensor_name].getValues() for sensor_name in self.touch_sensors}
-        
-        # values_file = open('local-values.txt', 'a')
-        # values_file.write('gyro ' + str(current_gyro_values))
-        # values_file.write('\n')
-        # values_file.write('accelerometer ' + str(current_accelerometer_values))
-        # values_file.write('\n')
-        # values_file.close()
+        # current_accelerometer_values = -np.array(current_accelerometer_values)
 
-        [self.gyro_values[idx].append(current_gyro_values[idx]) for idx in range(3)]
-        [self.accelerometer_values[idx].append(current_accelerometer_values[idx]) for idx in range(3)]
-        [self.touch_sensors_values[sensor_name].append(current_touch_sensor_values[sensor_name]) for sensor_name in self.touch_sensors]
+        # if self.current_time < 1000: print(current_gyro_values)
+        # self.logger(current_gyro_values, current_accelerometer_values)
+
+        self.gyro_values.append(current_gyro_values)
+        self.accelerometer_values.append(current_accelerometer_values)
+        
+        # convert to useful info
+        current_tilt_angles = (self.tilt_angles[-1] if len(self.tilt_angles) > 0 else np.array([0, 0, 0])) + (1 / 1000) * np.array(current_gyro_values)
+        self.tilt_angles.append(current_tilt_angles)
+
+        current_accelerometer_values = self.accelerometer_corrector(current_tilt_angles, current_accelerometer_values)
+
+        self.corrected_accelerometer_values.append(current_accelerometer_values)
+
+        # delta = (1 / 1000) * (((self.corrected_accelerometer_values[max(0, len(self.corrected_accelerometer_values) - 2)]) + current_accelerometer_values) / 2)
+        delta = (1 / 1000) * current_accelerometer_values
+        current_velocities = (self.velocities[-1] if len(self.velocities) > 0 else np.array([0, 0, 0])) + delta
+        self.velocities.append(current_velocities)
+
+        current_position = (self.positions[-1] if len(self.positions) > 0 else np.array([0, 0, 0])) + (1 / 1000) * current_velocities
+        self.positions.append(current_position)
+
+        if self.supervised:
+            self.supervised_update()
 
     def step(self):
         self.robot.step(self.accuracy)
@@ -204,7 +250,33 @@ class Robot:
 
     def get_sensors(self):
         return {
-            'gyro': np.array([self.gyro_values[0][-1], self.gyro_values[1][-1], self.gyro_values[2][-1]]),
-            'accelerometer': np.array([self.accelerometer_values[0][-1], self.accelerometer_values[1][-1], self.accelerometer_values[2][-1]]),
-            'touch_sensor': {sensor_name: self.touch_sensors_values[sensor_name][-1] for sensor_name in self.touch_sensors_values}
+            'gyro': self.gyro_values[-1],
+            'accelerometer': self.accelerometer_values[-1]
         }
+
+    @property
+    def tilt(self):
+        return self.tilt_angles[-1] if len(self.tilt_angles) > 0 else np.array([0, 0, 0])
+
+    @property
+    def position(self):
+        return self.positions[-1] if len(self.positions) > 0 else np.array([0, 0, 0])
+
+    def save_data(self):
+
+        data = {
+            'gyro_values': self.gyro_values,
+            'accelerometer_values': self.accelerometer_values,
+            'tilt_angles': self.tilt_angles,
+            'velocities': self.velocities,
+            'positions': self.positions,
+            'corrected_accelerometer_values': self.corrected_accelerometer_values
+        }
+
+        if self.supervised: 
+            data['actual_position'] = self.actual_position
+            data['orientation'] = self.orientation
+            data['actual_velocities'] = self.actual_velocities
+        
+        with open('local-values.pickle', 'wb') as handle:
+            pickle.dump(data, handle, protocol=pickle.HIGHEST_PROTOCOL)
