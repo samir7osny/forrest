@@ -1,28 +1,36 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React from 'react';
 import './App.css';
-import { connect, disconnect } from "./api/setup_viewer"
 import { Navbar } from './components/navbar';
-
+import {
+  BrowserRouter as Router,
+  Switch,
+  Route,
+} from "react-router-dom";
+import { Simulation } from './pages/Simulation';
 export function App() {
-  const [ip, setIP] = useState("localhost");
-  const [port, setPort] = useState("1234")
-  const elm = useRef();
-
   return (
-    <div className="App">
-      <header>
-        <Navbar></Navbar>
-      </header>
-      <div>
-        <h1>Webots streaming viewer</h1>
-        <p>
-          Connect to:
-          </p>
-        <input id="IPInput" type="text" value={ip} onChange={(val) => setIP(val)} />
-        <input id="PortInput" type="text" value={port} onChange={(val) => setPort(val)} />
-        <input id="ConnectButton" type="button" value="Connect" onClick={() => connect(ip, port, elm.current)} />
+    <Router>
+      <div className="App">
+        <header>
+          <Navbar></Navbar>
+        </header>
+        {/* A <Switch> looks through its children <Route>s and
+            renders the first one that matches the current URL. */}
+        <Switch>
+          <Route path="/">
+            <Simulation />
+          </Route>
+          <Route path="/simulation">
+            <Simulation />
+          </Route>
+          <Route path="/documentation">
+            <Simulation />
+          </Route>
+          <Route path="/team">
+            <Simulation />
+          </Route>
+        </Switch>
       </div>
-      <div id="playerDiv" ref={elm} style={{ flex: 1, width: "100%" }}></div>
-    </div>
+    </Router>
   );
 }

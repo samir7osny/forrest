@@ -6,7 +6,16 @@ nav {
     align-items: center;
     margin: 1rem;
     justify-content: space-between;
-    overflow: hidden;
+}
+
+a:visited,
+:checked {
+    color: var(--logo-light-color);
+}
+
+.icons {
+    color: var(--logo-light-color);
+    font-size: 1.5rem;
 }
 
 nav .logo {
@@ -20,7 +29,7 @@ nav .logo {
 
 nav .logo h1 {
     display: block;
-    font-size: 2rem;
+    font-size: 1.5rem;
     letter-spacing: 2px;
     font-family: 'Arima Madurai', cursive;
     color: var(--logo-light-color);
@@ -36,9 +45,28 @@ nav ul {
 }
 
 nav ul li {
-    padding: 1rem;
-    font-size: 1.5rem;
+    padding: 0 1rem;
+    font-size: 1.2rem;
     color: var(--logo-dark-color);
+    display: flex;
+    align-items: center;
 }
 
-nav .code {}
+nav ul li a {
+    padding: 1rem 0;
+}
+
+a:hover {
+    animation: 1s hover ease alternate-reverse;
+}
+
+
+@keyframes hover {
+    from {
+        transform: scale(1);
+    }
+
+    to {
+        transform: scale(1.1);
+    }
+}
