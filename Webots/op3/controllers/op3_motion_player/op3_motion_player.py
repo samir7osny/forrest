@@ -34,7 +34,7 @@ while True:
         controller.update()
 
         # testing
-        if robot.current_time < 1000 and controller.name == 'WalkingController': continue
+        if robot.current_time < 300 and controller.name == 'WalkingController': continue
 
         controls_parameters = controller.get_step()
         if 'ik' in controls_parameters:
