@@ -6,7 +6,7 @@ height=500
 path_str = 'M 300 100 C 100 100 200 200 200 300 L 250 350 L 220 300'
 # path_str = 'm 100 100 c 59 47 33 19 150 40 l 100 0 l -51 -8'
 # path_str = 'm 0 0 l 500 0'
-# path_str = 'm 0 0 c 0 0 250 50 500 0'
+path_str = 'm 0 0 c 0 0 250 50 500 0'
 
 path = parse_path(path_str)
 

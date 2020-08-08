@@ -82,7 +82,7 @@ class PathController(_controller):
         elif len(self.points) == 0: return 0, 0
 
         # TODO: get the current xy position from robot
-        self.robot_position = np.array([self.robot.actual_position[-1][0], -self.robot.actual_position[-1][2]]) * 100
+        self.robot_position = np.array([self.robot.actual_position[-1][0], self.robot.actual_position[-1][1]]) * 100
         robot_z_tilt = np.degrees(self.robot.tilt_angles[-1][2]) + angle_to_be
         # self.robot_position = np.array([0, 0])
         # robot_z_tilt = 0

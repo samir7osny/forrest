@@ -34,7 +34,8 @@ while True:
         controller.update()
 
         # testing
-        if robot.current_time < 300 and controller.name == 'WalkingController': continue
+        if robot.current_time < 2000 and controller.name == 'WalkingController': continue
+        if robot.current_time > 1000 and robot.current_time < 1500 and (controller.name == 'InclinationPitchController' or controller.name == 'InclinationRollController'): continue
 
         controls_parameters = controller.get_step()
         if 'ik' in controls_parameters:
@@ -54,6 +55,6 @@ while True:
     robot.apply_angles(angles)
     robot.step()
         
-    if all([controller.is_finished for controller in controllers]) and robot.current_time > 5000: 
+    if robot.current_time == 20000 or all([controller.is_finished for controller in controllers]) and robot.current_time > 5000: 
         robot.save_data()
         break

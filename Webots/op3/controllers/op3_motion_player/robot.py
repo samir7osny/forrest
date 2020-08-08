@@ -92,14 +92,17 @@ class Robot:
         self.current_time = 0
 
         if self.supervised:
-            self.actual_position = [np.array(self.robot_node.getPosition())]
-            mat = self.robot_node.getOrientation()
-            mat = np.reshape(mat, (3, 3))
-            or_x = np.arctan2(mat[2, 1], mat[2, 2])
-            or_y = np.arctan2(-mat[2, 0], np.sqrt(mat[2, 1]**2 + mat[2, 2]**2))
-            or_z = np.arctan2(mat[1, 0], mat[0, 0])
-            self.orientation = [np.array([or_x, or_y, or_z])]
+            # self.actual_position = [np.array(self.robot_node.getPosition())]
+            # mat = self.robot_node.getOrientation()
+            # mat = np.reshape(mat, (3, 3))
+            # or_x = np.arctan2(mat[2, 1], mat[2, 2])
+            # or_y = np.arctan2(-mat[2, 0], np.sqrt(mat[2, 1]**2 + mat[2, 2]**2))
+            # or_z = np.arctan2(mat[1, 0], mat[0, 0])
+            # self.orientation = [np.array([or_x, or_y, or_z])]
             # self.actual_velocities = [np.array(self.robot_node.getVelocity())]
+
+            self.actual_position = []
+            self.orientation = []
             self.actual_velocities = []
 
     def get_ik_angles(self, ik_values):
@@ -142,6 +145,8 @@ class Robot:
 
     def accelerometer_corrector(self, tilt_angles, accelerometer_values):
         
+        if self.current_time < 2: return np.array([0, 0, 0])
+
         factor = np.array([-1, -1, -1])
         # factor = np.array([1, 1, 1])
         # factor = np.array([0, 0, 0])
@@ -173,26 +178,34 @@ class Robot:
         
         rot_mat = matrix_from_euler_xyz(angles)
         accelerometer_values = np.matmul(rot_mat, accelerometer_values)
-
-        accelerometer_values -= np.array([5.00201980e-04, -4.10223144e-06, 9.81])
+        # if len(self.corrected_accelerometer_values) == 0: 
+        #     self.acc_offset = np.array(accelerometer_values)
+        # print(accelerometer_values, self.acc_offset)
+        self.acc_offset = np.array([0, 0, 9.81])
+        accelerometer_values -= self.acc_offset
 
         return accelerometer_values
 
     def supervised_update(self):
-        self.actual_position.append(np.array(self.robot_node.getPosition()) - self.actual_position[0])
+        positions = self.robot_node.getPosition()
+        positions[0], positions[1], positions[2] = positions[0], -positions[2], positions[1]
+        self.actual_position.append(np.array(positions) - (self.actual_position[0] if len(self.actual_position) > 0 else 0))
         
         mat = self.robot_node.getOrientation()
         mat = np.reshape(mat, (3, 3))
         or_x = np.arctan2(mat[2, 1], mat[2, 2])
-        or_y = np.arctan2(-mat[2, 0], np.sqrt(mat[2, 1]**2 + mat[2, 2]**2))
-        or_z = np.arctan2(mat[1, 0], mat[0, 0])
-        self.orientation.append(np.array([or_x, or_y, or_z]) - self.orientation[0])
+        or_z = np.arctan2(-mat[2, 0], np.sqrt(mat[2, 1]**2 + mat[2, 2]**2))
+        or_y = -np.arctan2(mat[1, 0], mat[0, 0])
+        self.orientation.append(np.array([or_x, or_y, or_z]) - (self.orientation[0] if len(self.orientation) > 0 else 0))
 
-        self.actual_velocities.append(np.array(self.robot_node.getVelocity()))
+        vel = np.array(self.robot_node.getVelocity())[[0, 2, 1]]
+        vel[1] = -vel[1]
+        self.actual_velocities.append(vel)
 
     def update(self):
         # already updated
         if self.current_time + 1 == len(self.gyro_values): return
+        # if self.current_time < 2000: return
 
         # new values
         current_gyro_values = self.gyro.getValues()
@@ -203,11 +216,12 @@ class Robot:
         # self.logger(current_gyro_values, current_accelerometer_values)
 
         self.gyro_values.append(current_gyro_values)
-        self.accelerometer_values.append(current_accelerometer_values)
         
         # convert to useful info
         current_tilt_angles = (self.tilt_angles[-1] if len(self.tilt_angles) > 0 else np.array([0, 0, 0])) + (1 / 1000) * np.array(current_gyro_values)
         self.tilt_angles.append(current_tilt_angles)
+
+        self.accelerometer_values.append(current_accelerometer_values)
 
         current_accelerometer_values = self.accelerometer_corrector(current_tilt_angles, current_accelerometer_values)
 
@@ -215,7 +229,7 @@ class Robot:
 
         # delta = (1 / 1000) * (((self.corrected_accelerometer_values[max(0, len(self.corrected_accelerometer_values) - 2)]) + current_accelerometer_values) / 2)
         delta = (1 / 1000) * current_accelerometer_values
-        current_velocities = (self.velocities[-1] if len(self.velocities) > 0 else np.array([0, 0, 0])) + delta
+        current_velocities = (self.velocities[-1] if len(self.velocities) > 0 else np.array([-0.01187519, 0, -9.80999959e-03])) + delta
         self.velocities.append(current_velocities)
 
         current_position = (self.positions[-1] if len(self.positions) > 0 else np.array([0, 0, 0])) + (1 / 1000) * current_velocities

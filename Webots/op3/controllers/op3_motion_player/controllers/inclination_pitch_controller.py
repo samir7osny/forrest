@@ -6,7 +6,7 @@ class InclinationPitchController(_controller):
     def __init__(self, accuracy=1):
         super().__init__(accuracy)
 
-        self.angle_controller = PID(Kp=1, Ki=7, Kd=0.8, guard=(-60, 60))
+        self.angle_controller = PID(Kp=1.5, Ki=2, Kd=0.8, guard=(-60, 60))
         self.control_value = 0
         self.name = 'InclinationPitchController'
 
