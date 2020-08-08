@@ -94,9 +94,9 @@ export function Path(props) {
     }
 
     return (
-        <div style={{ justifyContent: "center", display: "flex" }}>
+        <div className="path">
             <svg
-                style={{ flex: 1, backgroundColor: 'lightgrey' }}
+                style={{ flex: 1 }}
                 onMouseDown={(e) => { if (!e.button) handleMoveDown(e) }}
                 onMouseUp={(e) => { if (!e.button) handleMoveUp(e) }}
                 onMouseMove={(e) => { if (e.buttons === 1) handleDrag(e) }}
@@ -112,12 +112,9 @@ export function Path(props) {
                 <path
                     ref={pathRef}
                     d={path.map((point) => pathToString(point)).join(" ") + pathToString(lastElm)}
-                    stroke-width="20"
+                    strokeWidth="20"
                     fill="none"
-                    className="path"
-                    style={{
-                        filter: "drop-shadow( 0 5px 5px gray)"
-                    }}
+                    className="line"
                     strokeLinecap="round"
                     strokeLinejoin="round"
                 />

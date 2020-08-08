@@ -4,14 +4,18 @@
   align-items: center;
   text-align: center;
   display: flex;
-  flex-direction: column;
+  flex-direction: row;
 }
 
 header {
-  height: 8vh;
-  width: 100%;
+  height: 100vh;
+  width: 5vw;
+  min-width: 50px;
   display: flex;
   align-items: center;
   justify-content: center;
   border-bottom: 2px var(--logo-dark-color) solid;
+  box-shadow: 3px 0px 5px -5px var(--logo-dark-color);
+
+  z-index: 10;
 }
