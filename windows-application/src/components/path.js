@@ -1,17 +1,29 @@
 import React, { createRef, useState, useEffect } from 'react'
+import { Handle } from './handle';
+import "./path.css"
 export function Path(props) {
     const pathRef = createRef();
     const svgRef = createRef();
     const [path, setPath] = useState([]);
     const [lastElm, setLastElm] = useState({});
-
-    function createPointHead(point, rad, color) {
+    const [handleP1, setHandleP1] = useState();
+    const [handleP2, setHandleP2] = useState();
+    let [counter, setCounter] = useState(0);
+    function createPointHead(point, rad) {
         let circ = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
         circ.setAttribute("cx", point.x);
         circ.setAttribute("cy", point.y);
         circ.setAttribute("r", rad);
-        circ.setAttribute('fill', color);
-        return circ;
+        circ.setAttribute("class", "point");
+        let text = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+        text.textContent = counter;
+        text.setAttributeNS(null, "x", point.x);
+        text.setAttributeNS(null, "y", point.y + 10);
+        text.setAttributeNS(null, "text-anchor", "middle");
+        text.setAttribute("class", "point-text");
+        text.style.userSelect = "none"
+        setCounter(counter + 1)
+        return [circ, text];
     }
 
     function addPoint(p) {
@@ -19,18 +31,17 @@ export function Path(props) {
         if (path.length && JSON.stringify(p) === JSON.stringify(path[path.length - 1].p))
             return
         setLastElm({ type, p })
-        let circ = createPointHead(p, 5, 'red');
+        let [circ, text] = createPointHead(p, 30, 'red');
         svgRef.current.appendChild(circ);
+        svgRef.current.appendChild(text);
     }
 
     function addCurve(p, p1, p2) {
         if (path.length && JSON.stringify(p) === JSON.stringify(path[path.length - 1].p))
             return
-        let circ = createPointHead(p, 5, 'red');
         setLastElm(
             { type: "C", p, p1, p2 }
         )
-        svgRef.current.appendChild(circ);
     }
 
     function pathToString(elm) {
@@ -45,7 +56,7 @@ export function Path(props) {
         }
     }
 
-    useEffect(() => console.log(path), [path])
+    //useEffect(() => console.log(path), [path])
 
     function handleMoveDown(e) {
         const { x, y } = svgRef.current.getBoundingClientRect()
@@ -59,10 +70,15 @@ export function Path(props) {
 
         const { x, y } = svgRef.current.getBoundingClientRect();
         const point = { x: lastElm.p.x, y: lastElm.p.y };
-        let p1 = point;
-        if (path[path.length - 1].type === "C")
-            p1 = path[path.length - 1].p2;
-        let p2 = { x: Math.round(e.clientX - x), y: Math.round(e.clientY - y) };
+        const handleX = e.clientX - x
+        const handleY = e.clientY - y
+        let p1 = { x: Math.round(handleX - 2 * (handleX - point.x)), y: Math.round(handleY - 2 * (handleY - point.y)) };
+        let p2 = p1;
+
+        let h1 = p1;
+        let h2 = { x: Math.round(handleX), y: Math.round(handleY) };
+        setHandleP1(h1);
+        setHandleP2(h2);
         addCurve(point, p1, p2);
     }
 
@@ -78,21 +94,32 @@ export function Path(props) {
     }
 
     return (
-        <div style={{ justifyContent: "center", paddingTop: 19, display: "flex" }}>
+        <div style={{ justifyContent: "center", display: "flex" }}>
             <svg
-                style={{ flex: 1, height: "90vh", backgroundColor: 'lightgrey' }}
+                style={{ flex: 1, backgroundColor: 'lightgrey' }}
                 onMouseDown={(e) => { if (!e.button) handleMoveDown(e) }}
                 onMouseUp={(e) => { if (!e.button) handleMoveUp(e) }}
                 onMouseMove={(e) => { if (e.buttons === 1) handleDrag(e) }}
                 ref={svgRef}
             >
+                <Handle
+                    p1={handleP1}
+                    p2={handleP2}
+                    rad={5}
+                    width={3}
+                    color={getComputedStyle(document.documentElement).getPropertyValue('--logo-dark-color')}
+                />
                 <path
                     ref={pathRef}
-                    id="lineAB"
                     d={path.map((point) => pathToString(point)).join(" ") + pathToString(lastElm)}
-                    stroke="red"
-                    stroke-width="3"
+                    stroke-width="20"
                     fill="none"
+                    className="path"
+                    style={{
+                        filter: "drop-shadow( 0 5px 5px gray)"
+                    }}
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
                 />
             </svg>
         </div>

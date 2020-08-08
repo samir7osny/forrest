@@ -1,0 +1,13 @@
+.path {
+    stroke: var(--logo-light-color);
+}
+
+.point {
+    fill: var(--logo-light-color);
+}
+
+.point-text {
+    fill: wheat;
+    font-size: 30px;
+    font-family: 'Righteous', cursive;
+}

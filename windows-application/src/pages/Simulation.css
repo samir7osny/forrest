@@ -1,4 +1,25 @@
 .simulation {
     width: 100%;
-    height: 90vh;
+    height: 92vh;
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    grid-template-rows: repeat(2, 1fr);
+    column-gap: 10px;
+    row-gap: 10px;
+}
+
+.simulator {
+    background-color: red;
+}
+
+.graph {
+    background-color: blue;
+}
+
+.svg {
+    background-color: green;
+}
+
+.controller {
+    background-color: brown;
 }
