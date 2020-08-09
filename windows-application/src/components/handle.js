@@ -7,7 +7,7 @@ export function Handle(props) {
                 <path
                     d={`m ${props.p1.x} ${props.p1.y} L ${props.p2.x} ${props.p2.y}`}
                     stroke={`${props.color ? props.color : "red"}`}
-                    stroke-width={`${props.width ? props.width : 2}`}
+                    strokeWidth={`${props.width ? props.width : 2}`}
                     fill="none"
                 ></path>
                 <circle

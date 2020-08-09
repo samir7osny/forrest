@@ -1,14 +1,27 @@
-import React, { createRef, useState, useEffect } from 'react'
+import React, { createRef, useState, useEffect, forwardRef, useImperativeHandle } from 'react'
 import { Handle } from './handle';
 import "./path.css"
-export function Path(props) {
-    const pathRef = createRef();
+export const Path = forwardRef((props, ref) => {
     const svgRef = createRef();
+    const [isDraging, setIsDraging] = useState(false);
     const [path, setPath] = useState([]);
     const [lastElm, setLastElm] = useState({});
     const [handleP1, setHandleP1] = useState();
     const [handleP2, setHandleP2] = useState();
     let [counter, setCounter] = useState(0);
+
+    useImperativeHandle(ref, () => ({
+        clear: () => {
+            setPath([])
+            setCounter(0)
+            while (svgRef.current.childNodes.length > 1) {
+                svgRef.current.removeChild(svgRef.current.lastChild);
+            }
+            setHandleP1(null)
+            setHandleP2(null)
+        },
+        getPath: () => svgRef.current.firstChild
+    }))
     function createPointHead(point, rad) {
         let circ = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
         circ.setAttribute("cx", point.x);
@@ -62,6 +75,7 @@ export function Path(props) {
         const { x, y } = svgRef.current.getBoundingClientRect()
         const point = { x: Math.round(e.clientX - x), y: Math.round(e.clientY - y) }
         addPoint(point)
+        setIsDraging(true)
     }
 
     function handleDrag(e) {
@@ -91,6 +105,7 @@ export function Path(props) {
             setPath([...path, lastElm])
             setLastElm({})
         }
+        setIsDraging(false)
     }
 
     return (
@@ -102,15 +117,7 @@ export function Path(props) {
                 onMouseMove={(e) => { if (e.buttons === 1) handleDrag(e) }}
                 ref={svgRef}
             >
-                <Handle
-                    p1={handleP1}
-                    p2={handleP2}
-                    rad={5}
-                    width={3}
-                    color={getComputedStyle(document.documentElement).getPropertyValue('--logo-dark-color')}
-                />
                 <path
-                    ref={pathRef}
                     d={path.map((point) => pathToString(point)).join(" ") + pathToString(lastElm)}
                     strokeWidth="20"
                     fill="none"
@@ -118,7 +125,16 @@ export function Path(props) {
                     strokeLinecap="round"
                     strokeLinejoin="round"
                 />
+                {
+                    isDraging ? (<Handle
+                        p1={handleP1}
+                        p2={handleP2}
+                        rad={5}
+                        width={3}
+                        color={getComputedStyle(document.documentElement).getPropertyValue('--logo-dark-color')}
+                    />) : null
+                }
             </svg>
         </div>
     )
-}
+})

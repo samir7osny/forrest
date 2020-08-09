@@ -6,13 +6,30 @@ import ControlPanel from '../components/controlPanel';
 export function Simulation() {
     const [ip, setIP] = useState("localhost");
     const [port, setPort] = useState("1234")
-    const [connected, setConnected] = useState(false);
+    const [connected, setConnected] = useState(true);
+    const pathRef = useRef();
     const elm = useRef();
+
     function handleConnect() {
         setConnected(true);
     }
 
-    useEffect(() => { connected && connect(ip, port, document.getElementById("playerDiv")) }, [connected])
+    function sendPath() {
+        console.log("this is the <path> DOM element:\n", pathRef.current.getPath())
+    }
+
+    function clearPath() {
+        pathRef.current.clear()
+    }
+
+    function uploadPath() {
+
+    }
+
+    function resetSimulation() {
+
+    }
+    useEffect(() => { false && connected && connect(ip, port, document.getElementById("playerDiv")) }, [connected])
     return (
         <div className="simulation">
             {
@@ -29,9 +46,19 @@ export function Simulation() {
                 ) : (
                         <React.Fragment>
                             <div id="playerDiv" ref={elm} className="simulator"></div>
-                            <div className="svg"><Path x="test" className="svg" /></div>
+                            <div className="svg">
+                                <Path
+                                    className="svg"
+                                    ref={pathRef}
+                                />
+                            </div>
                             <div className="graph"></div>
-                            <div className="controller"><ControlPanel /></div>
+                            <div className="controller"><ControlPanel
+                                run={sendPath}
+                                reset={resetSimulation}
+                                clear={clearPath}
+                                upload={uploadPath}
+                            /></div>
                         </React.Fragment>
                     )
             }
