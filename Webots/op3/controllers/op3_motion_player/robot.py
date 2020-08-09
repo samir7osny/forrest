@@ -3,12 +3,22 @@ import numpy as np
 import controller as webots_controller
 import matplotlib.pyplot as plt
 import matplotlib.animation as animation
+import pickle
+from pytransform3d.rotations import *
 
 class Robot:
     def __init__(self, accuracy=1, real_time_plotting=False):
         
-        self.robot = webots_controller.Robot()
+        self.robot = webots_controller.Supervisor()
+        
 
+        if self.robot.getSupervisor():
+            self.supervised = True
+            self.robot_node = self.robot.getFromDef("OP3")
+            # self.trans_field = self.robot_node.getField("translation")
+        else:
+            self.supervised = False
+        
         self.real_time_plotting = real_time_plotting
         self.accuracy = accuracy
 
@@ -19,6 +29,7 @@ class Robot:
         self.FootToGround = (0.0340148 * 1000)
 
         self.HipToGround = self.HipToGround
+        self.HipToLeg = self.HipToGround - self.LegToGround
         self.LegToKnee = self.LegToGround - self.kneeToGround
         self.KneeToAnkle = self.kneeToGround - self.AnkleToGround
         self.AnkleToFoot = self.AnkleToGround - self.FootToGround
@@ -35,8 +46,8 @@ class Robot:
             "ArmLowerR",  # ID5
             "ArmLowerL",  # ID6
 
-            # "PelvYR",  # ID7
-            # "PelvYL",  # ID8
+            "PelvYR",  # ID7
+            "PelvYL",  # ID8
             "PelvR",  # ID9
             "PelvL",  # ID10
             "LegUpperR",  # ID11
@@ -52,22 +63,7 @@ class Robot:
             "Head"  # ID20
         ]
 
-
-        self.gyro_values = [[0], [0], [0]]
-        self.accelerometer_values = [[0], [0], [0]]
-
-        if self.real_time_plotting:
-            self.time = []
-
-            plt.ion()
-            self.gyro_fig = plt.figure()
-            self.gyro_ax = self.gyro_fig.add_subplot(111)
-
-            self.accelerometer_fig = plt.figure()
-            self.accelerometer_ax = self.accelerometer_fig.add_subplot(111)
-            
-            plt.draw()
-            plt.pause(0.001)
+        self.reset()
 
         self.motors = {}
         for motor_name in motors_names:
@@ -81,27 +77,33 @@ class Robot:
 
         self.current_time = 0
 
-        open('local-values.txt', 'w').close
+        open('local-values.txt', 'w').close()
 
-    def flush_graphs(self):
-        self.gyro_ax.clear()
-        self.accelerometer_ax.clear()
+    def reset(self):
+        self.gyro_values = []
+        self.accelerometer_values = []
+        
+        self.corrected_accelerometer_values = []
 
-        try:
-            self.gyro_ax.plot(self.time, self.gyro_values[0], label='gyro x')
-            self.gyro_ax.plot(self.time, self.gyro_values[1], label='gyro y')
-            self.gyro_ax.plot(self.time, self.gyro_values[2], label='gyro z')
-            self.gyro_ax.legend()
+        self.tilt_angles = []
+        self.velocities = []
+        self.positions = []
 
-            self.accelerometer_ax.plot(self.time, self.accelerometer_values[0], label='accelerometer x')
-            self.accelerometer_ax.plot(self.time, self.accelerometer_values[1], label='accelerometer y')
-            self.accelerometer_ax.plot(self.time, self.accelerometer_values[2], label='accelerometer z')
-            self.accelerometer_ax.legend()
-        except:
-            print('error')
+        self.current_time = 0
 
-        plt.draw()
-        plt.pause(0.0001)
+        if self.supervised:
+            # self.actual_position = [np.array(self.robot_node.getPosition())]
+            # mat = self.robot_node.getOrientation()
+            # mat = np.reshape(mat, (3, 3))
+            # or_x = np.arctan2(mat[2, 1], mat[2, 2])
+            # or_y = np.arctan2(-mat[2, 0], np.sqrt(mat[2, 1]**2 + mat[2, 2]**2))
+            # or_z = np.arctan2(mat[1, 0], mat[0, 0])
+            # self.orientation = [np.array([or_x, or_y, or_z])]
+            # self.actual_velocities = [np.array(self.robot_node.getVelocity())]
+
+            self.actual_position = []
+            self.orientation = []
+            self.actual_velocities = []
 
     def get_ik_angles(self, ik_values):
 
@@ -122,29 +124,119 @@ class Robot:
         angles['LegUpperR'], angles['LegLowerR'], angles['AnkleR'] = self.inverse_kinematic_xz(a, -(right_foot_x_value - pelvis_x_value))
         angles['LegUpperR'], angles['LegLowerR'] = -angles['LegUpperR'], -angles['LegLowerR']
 
-        angles['PelvL'], angles['FootL'] = self.inverse_kinematic_y(pelvis_y_value)
-        angles['PelvR'], angles['FootR'] = angles['PelvL'], angles['FootL']
+        a = self.HipToLeg + self.LegToKnee * np.cos(np.radians(angles['LegUpperL'])) + self.KneeToAnkle * np.cos(np.radians(angles['LegLowerL']))  + self.AnkleToFoot * np.cos(np.radians(angles['AnkleL']))
+        angles['PelvL'], angles['FootL'] = self.inverse_kinematic_y(pelvis_y_value, a)
+        a = self.HipToLeg + self.LegToKnee * np.cos(np.radians(angles['LegUpperR'])) + self.KneeToAnkle * np.cos(np.radians(angles['LegLowerR']))  + self.AnkleToFoot * np.cos(np.radians(angles['AnkleR']))
+        angles['PelvR'], angles['FootR'] = self.inverse_kinematic_y(pelvis_y_value, a)
+        # angles['PelvR'], angles['FootR'] = angles['PelvL'], angles['FootL']
 
         return angles
 
     def apply_angles(self, angles):
         [self.motors[motor_name].setPosition(math.radians(angles[motor_name])) for motor_name in angles]
 
-    def update(self):
-        if self.current_time + 1 == len(self.gyro_values[0]): return
+    # def logger(self, current_gyro_values, current_accelerometer_values):
+    #     values_file = open('local-values.txt', 'a')
+    #     values_file.write('gyro ' + str(current_gyro_values))
+    #     values_file.write('\n')
+    #     values_file.write('accelerometer ' + str(current_accelerometer_values))
+    #     values_file.write('\n')
+    #     values_file.close()
 
+    def accelerometer_corrector(self, tilt_angles, accelerometer_values):
+        
+        if self.current_time < 2: return np.array([0, 0, 0])
+
+        factor = np.array([-1, -1, -1])
+        # factor = np.array([1, 1, 1])
+        # factor = np.array([0, 0, 0])
+        angles = tilt_angles * factor
+        # rot_matrix_x = np.array(
+        #     [
+        #         [1, 0, 0],
+        #         [0, np.cos(angles[0]), -np.sin(angles[0])],
+        #         [0, np.sin(angles[0]), np.cos(angles[0])],
+        #     ]
+        # )
+        # rot_matrix_y = np.array(
+        #     [
+        #         [np.cos(angles[1]), 0, np.sin(angles[1])],
+        #         [0, 1, 0],
+        #         [-np.sin(angles[1]), 0, np.cos(angles[1])],
+        #     ]
+        # )
+        # rot_matrix_z = np.array(
+        #     [
+        #         [np.cos(angles[2]), -np.sin(angles[2]), 0],
+        #         [np.sin(angles[2]), np.cos(angles[2]), 0],
+        #         [0, 0, 1],
+        #     ]
+        # )
+        # rot_mat = rot_matrix_x
+        # rot_mat = np.matmul(rot_matrix_y, rot_mat)
+        # rot_mat = np.matmul(rot_matrix_z, rot_mat)
+        
+        rot_mat = matrix_from_euler_xyz(angles)
+        accelerometer_values = np.matmul(rot_mat, accelerometer_values)
+        # if len(self.corrected_accelerometer_values) == 0: 
+        #     self.acc_offset = np.array(accelerometer_values)
+        # print(accelerometer_values, self.acc_offset)
+        self.acc_offset = np.array([0, 0, 9.81])
+        accelerometer_values -= self.acc_offset
+
+        return accelerometer_values
+
+    def supervised_update(self):
+        positions = self.robot_node.getPosition()
+        positions[0], positions[1], positions[2] = positions[0], -positions[2], positions[1]
+        self.actual_position.append(np.array(positions) - (self.actual_position[0] if len(self.actual_position) > 0 else 0))
+        
+        mat = self.robot_node.getOrientation()
+        mat = np.reshape(mat, (3, 3))
+        or_x = np.arctan2(mat[2, 1], mat[2, 2])
+        or_z = np.arctan2(-mat[2, 0], np.sqrt(mat[2, 1]**2 + mat[2, 2]**2))
+        or_y = -np.arctan2(mat[1, 0], mat[0, 0])
+        self.orientation.append(np.array([or_x, or_y, or_z]) - (self.orientation[0] if len(self.orientation) > 0 else 0))
+
+        vel = np.array(self.robot_node.getVelocity())[[0, 2, 1]]
+        vel[1] = -vel[1]
+        self.actual_velocities.append(vel)
+
+    def update(self):
+        # already updated
+        if self.current_time + 1 == len(self.gyro_values): return
+        # if self.current_time < 2000: return
+
+        # new values
         current_gyro_values = self.gyro.getValues()
         current_accelerometer_values = self.accelerometer.getValues()
-        
-        values_file = open('local-values.txt', 'a')
-        values_file.write('gyro ' + str(current_gyro_values))
-        values_file.write('\n')
-        values_file.write('accelerometer ' + str(current_accelerometer_values))
-        values_file.write('\n')
-        values_file.close()
+        # current_accelerometer_values = -np.array(current_accelerometer_values)
 
-        [self.gyro_values[idx].append(current_gyro_values[idx]) for idx in range(3)]
-        [self.accelerometer_values[idx].append(current_accelerometer_values[idx]) for idx in range(3)]
+        # if self.current_time < 1000: print(current_gyro_values)
+        # self.logger(current_gyro_values, current_accelerometer_values)
+
+        self.gyro_values.append(current_gyro_values)
+        
+        # convert to useful info
+        current_tilt_angles = (self.tilt_angles[-1] if len(self.tilt_angles) > 0 else np.array([0, 0, 0])) + (1 / 1000) * np.array(current_gyro_values)
+        self.tilt_angles.append(current_tilt_angles)
+
+        self.accelerometer_values.append(current_accelerometer_values)
+
+        current_accelerometer_values = self.accelerometer_corrector(current_tilt_angles, current_accelerometer_values)
+
+        self.corrected_accelerometer_values.append(current_accelerometer_values)
+
+        # delta = (1 / 1000) * (((self.corrected_accelerometer_values[max(0, len(self.corrected_accelerometer_values) - 2)]) + current_accelerometer_values) / 2)
+        delta = (1 / 1000) * current_accelerometer_values
+        current_velocities = (self.velocities[-1] if len(self.velocities) > 0 else np.array([-0.01187519, 0, -9.80999959e-03])) + delta
+        self.velocities.append(current_velocities)
+
+        current_position = (self.positions[-1] if len(self.positions) > 0 else np.array([0, 0, 0])) + (1 / 1000) * current_velocities
+        self.positions.append(current_position)
+
+        if self.supervised:
+            self.supervised_update()
 
     def step(self):
         self.robot.step(self.accuracy)
@@ -165,13 +257,40 @@ class Robot:
 
         return math.degrees(Q1), math.degrees(Q2), math.degrees(Q3)
 
-    def inverse_kinematic_y(self, dy):
-        Q1 = np.arcsin((dy) / (self.HipToFoot))
+    def inverse_kinematic_y(self, dy, a):
+        Q1 = np.arcsin((dy) / a)
 
         return math.degrees(Q1), math.degrees(Q1)
 
     def get_sensors(self):
         return {
-            'gyro': np.array([self.gyro_values[0][-1], self.gyro_values[1][-1], self.gyro_values[2][-1]]),
-            'accelerometer': np.array([self.accelerometer_values[0][-1], self.accelerometer_values[1][-1], self.accelerometer_values[2][-1]]),
+            'gyro': self.gyro_values[-1],
+            'accelerometer': self.accelerometer_values[-1]
         }
+
+    @property
+    def tilt(self):
+        return self.tilt_angles[-1] if len(self.tilt_angles) > 0 else np.array([0, 0, 0])
+
+    @property
+    def position(self):
+        return self.positions[-1] if len(self.positions) > 0 else np.array([0, 0, 0])
+
+    def save_data(self):
+
+        data = {
+            'gyro_values': self.gyro_values,
+            'accelerometer_values': self.accelerometer_values,
+            'tilt_angles': self.tilt_angles,
+            'velocities': self.velocities,
+            'positions': self.positions,
+            'corrected_accelerometer_values': self.corrected_accelerometer_values
+        }
+
+        if self.supervised: 
+            data['actual_position'] = self.actual_position
+            data['orientation'] = self.orientation
+            data['actual_velocities'] = self.actual_velocities
+        
+        with open('local-values.pickle', 'wb') as handle:
+            pickle.dump(data, handle, protocol=pickle.HIGHEST_PROTOCOL)

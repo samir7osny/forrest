@@ -1,5 +1,5 @@
 from CoM.robot import *
-from MotionPattern.plot import *
+from MotionPattern.walking_pattern_generator import *
 import matplotlib.pyplot as plt 
 from matplotlib import animation
 import math
@@ -9,21 +9,26 @@ robot = Robot()
 ser = serial.Serial('COM8', baudrate=9600, timeout=1)
 
 def update_robot(num):
-    LegAngleL, KneeAngleL, AnkleAngleL = inverse_kinematic_xz(robot.HipToGround - data['left_foot_z_values'][num], -(data['left_foot_x_values'][num] - data['pelvis_x_values'][num]), 0)
-    # print('L', robot.HipToGround - data['left_foot_z_values'][num], -(data['left_foot_x_values'][num] - data['pelvis_x_values'][num]))
+    left_foot_z_value = data['left_foot_z_value'][num]
+    left_foot_x_value = data['left_foot_x_value'][num]
+    right_foot_z_value = data['right_foot_z_value'][num]
+    right_foot_x_value = data['right_foot_x_value'][num]
+    pelvis_x_value = data['pelvis_x_value'][num]
+    pelvis_y_value = data['pelvis_y_value'][num]
+
+
+    a = np.sqrt((robot.HipToGround - left_foot_z_value) ** 2 - (-(left_foot_x_value - pelvis_x_value)) ** 2)
+    LegAngleL, KneeAngleL, AnkleAngleL = inverse_kinematic_xz(a, -(left_foot_x_value - pelvis_x_value))
     LegAngleL, KneeAngleL, AnkleAngleL = -LegAngleL, -KneeAngleL, -AnkleAngleL
     
-    LegAngleR, KneeAngleR, AnkleAngleR = inverse_kinematic_xz(robot.HipToGround - data['right_foot_z_values'][num], -(data['right_foot_x_values'][num] - data['pelvis_x_values'][num]), 0)
-    # print('R', robot.HipToGround - data['right_foot_z_values'][num], -(data['right_foot_x_values'][num] - data['pelvis_x_values'][num]))
+    a = np.sqrt((robot.HipToGround - right_foot_z_value) ** 2 - (-(right_foot_x_value - pelvis_x_value)) ** 2)
+    LegAngleR, KneeAngleR, AnkleAngleR = inverse_kinematic_xz(a, -(right_foot_x_value - pelvis_x_value))
 
-    HipAngleL, FootAngleL = inverse_kinematic_y(data['pelvis_y_values'][num])
-    # HipAngleL = -HipAngleL
-    # FootAngleL = -FootAngleL
-    HipAngleR, FootAngleR = HipAngleL, FootAngleL
-
-    # print('LY', HipAngleL, FootAngleL)
-    # print('RY', HipAngleR, FootAngleR)
-
+    a = robot.HipToLeg + robot.LegToKnee * np.cos(np.radians(LegAngleL)) + robot.KneeToAnkle * np.cos(np.radians(KneeAngleL))  + robot.AnkleToFoot * np.cos(np.radians(AnkleAngleL))
+    HipAngleL, FootAngleL = inverse_kinematic_y(pelvis_y_value, a)
+    a = robot.HipToLeg + robot.LegToKnee * np.cos(np.radians(LegAngleR)) + robot.KneeToAnkle * np.cos(np.radians(KneeAngleR))  + robot.AnkleToFoot * np.cos(np.radians(AnkleAngleR))
+    HipAngleR, FootAngleR = inverse_kinematic_y(pelvis_y_value, a)
+    
     robot.send_serial(ser, LegL=LegAngleL, KneeL=KneeAngleL, AnkleL=AnkleAngleL, LegR=LegAngleR, KneeR=KneeAngleR, AnkleR=AnkleAngleR, HipL=HipAngleL, FootL=FootAngleL, HipR=HipAngleR, FootR=FootAngleR)
 
 
@@ -76,9 +81,8 @@ def inverse_kinematic_xz(a, b, theta):
 
     return math.degrees(Q1), math.degrees(Q2), math.degrees(Q3)
 
-def inverse_kinematic_y(dy):
-
-    Q1 = np.arcsin((dy) / (robot.HipToFoot))
+def inverse_kinematic_y(dy, a):
+    Q1 = np.arcsin((dy) / a)
 
     return math.degrees(Q1), math.degrees(Q1)
 
@@ -121,7 +125,17 @@ current_xidx = 0
 animation_running = False
 ani = None
 
-data = get_pattern()
+generator = PatternGenerator(L=robot.HipToGround)
+data = generator.generate_full_pattern()
+data = {
+    't': data[0], # t,
+    'right_foot_z_value': data[1], # right_foot_height,
+    'left_foot_z_value': data[2], # left_foot_height,
+    'pelvis_y_value': data[3], # pelvis_side_displacement,
+    'right_foot_x_value': data[4], # right_foot_forward_displacement,
+    'left_foot_x_value': data[5], # left_foot_forward_displacement,
+    'pelvis_x_value': data[6], # pelvis_forward_displacement
+}
 
 update_robot(0)
 
