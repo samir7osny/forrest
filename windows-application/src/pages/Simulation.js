@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react'
+import React, { useState, useRef, useEffect } from 'react'
 import { connect, disconnect } from "./../api/setup_viewer"
 import "./Simulation.css"
 import { Path } from '../components/path';
@@ -6,8 +6,13 @@ import ControlPanel from '../components/controlPanel';
 export function Simulation() {
     const [ip, setIP] = useState("localhost");
     const [port, setPort] = useState("1234")
-    const [connected, setConnected] = useState(true);
+    const [connected, setConnected] = useState(false);
     const elm = useRef();
+    function handleConnect() {
+        setConnected(true);
+    }
+
+    useEffect(() => { connected && connect(ip, port, document.getElementById("playerDiv")) }, [connected])
     return (
         <div className="simulation">
             {
@@ -17,9 +22,9 @@ export function Simulation() {
                         <p>
                             Connect to:
                      </p>
-                        <input id="IPInput" type="text" value={ip} onChange={(val) => setIP(val)} />
-                        <input id="PortInput" type="text" value={port} onChange={(val) => setPort(val)} />
-                        <input id="ConnectButton" type="button" value="Connect" onClick={() => connect(ip, port, elm.current)} />
+                        <input id="IPInput" type="text" value={ip} onChange={(val) => setIP(val.target.value)} />
+                        <input id="PortInput" type="text" value={port} onChange={(val) => setPort(val.target.value)} />
+                        <input id="ConnectButton" type="button" value="Connect" onClick={handleConnect} />
                     </div>
                 ) : (
                         <React.Fragment>
