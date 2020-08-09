@@ -1,4 +1,30 @@
 .simulation {
     width: 100%;
-    height: 90vh;
+    height: 100vh;
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    grid-template-rows: repeat(2, 1fr);
+    column-gap: 8px;
+    row-gap: 8px;
+    background-color: #ddd;
+}
+
+.simulator {
+    background-color: #fff;
+}
+
+.graph {
+    background-color: #fff;
+
+}
+
+.svg {
+    background-color: #fff;
+    position: relative;
+
+}
+
+.controller {
+    background-color: #fff;
+
 }

@@ -1,0 +1,42 @@
+.path {
+    width: 100%;
+    height: 100%;
+    justify-content: center;
+    display: flex;
+    position: relative;
+}
+
+.path h4 {
+    color: var(--logo-light-color);
+    animation: blink 1s ease-in-out infinite alternate-reverse;
+    position: absolute;
+    font-family: monospace;
+    font-size: x-large;
+    transform: translate(-50%, -50%);
+    left: 50%;
+    top: 50%;
+}
+
+@keyframes blink {
+    from {
+        opacity: 0;
+    }
+
+    to {
+        opacity: 1;
+    }
+}
+
+.line {
+    stroke: var(--logo-light-color);
+}
+
+.point {
+    fill: var(--logo-light-color);
+}
+
+.point-text {
+    fill: wheat;
+    font-size: 30px;
+    font-family: 'Righteous', cursive;
+}
