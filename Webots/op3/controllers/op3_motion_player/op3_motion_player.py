@@ -5,56 +5,136 @@ from controllers.base_controller import BaseController
 from controllers.walking_controller import WalkingController
 from controllers.inclination_pitch_controller import InclinationPitchController
 from controllers.inclination_roll_controller import InclinationRollController
+import threading
+import asyncio
+import websockets
 
-base_controller = BaseController()
-walking_controller = WalkingController()
-inclination_pitch_controller = InclinationPitchController()
-inclination_roll_controller = InclinationRollController()
-
-controllers = [
-    base_controller,
-    inclination_pitch_controller,
-    inclination_roll_controller,
-    walking_controller,
-]
-base_controller.priority = 0
-inclination_pitch_controller.priority = 1
-inclination_roll_controller.priority = 1
-walking_controller.priority = 2
+STATE_INIT = 0
+STATE_READY = 1
+STATE_PLAY = 2
+STATE_DONE = 3
 
 robot = Robot(accuracy=1)
+controllers = []
+current_state = STATE_INIT
 
-[controller.attach(robot) for controller in controllers]
+def reset_simulation(path=None):
+    global controllers, current_state
 
-while True:
-    ik = {}
-    angles = {}
-    last_unstable_priority = -1
-    for controller in controllers:
-        controller.update()
+    robot.simulationReset()
+    robot.reset()
 
-        # testing
-        if robot.current_time < 2000 and controller.name == 'WalkingController': continue
-        if robot.current_time > 1000 and robot.current_time < 1500 and (controller.name == 'InclinationPitchController' or controller.name == 'InclinationRollController'): continue
+    base_controller = BaseController()
+    walking_controller = WalkingController(path=path)
+    inclination_pitch_controller = InclinationPitchController()
+    inclination_roll_controller = InclinationRollController()
 
-        controls_parameters = controller.get_step()
-        if 'ik' in controls_parameters:
-            for value in controls_parameters['ik']:
-                ik[value] = controls_parameters['ik'][value] + (ik[value] if value in ik else 0)
-        if 'angles' in controls_parameters:
-            for angle_name in controls_parameters['angles']:
-                angles[angle_name] = controls_parameters['angles'][angle_name] + (angles[angle_name] if angle_name in angles else 0)
+    controllers = [
+        base_controller,
+        inclination_pitch_controller,
+        inclination_roll_controller,
+        walking_controller,
+    ]
 
-        if not controller.check_stability():
-            last_unstable_priority = controller.priority
+    base_controller.priority = 0
+    inclination_pitch_controller.priority = 1
+    inclination_roll_controller.priority = 1
+    walking_controller.priority = 2
 
-    if len(ik) > 0:
-        ik_angles = robot.get_ik_angles(ik)
-        for angle_name in ik_angles:
-            angles[angle_name] = ik_angles[angle_name] + (angles[angle_name] if angle_name in angles else 0)
-    robot.apply_angles(angles)
-    robot.step()
-        
-    if robot.current_time == 20000 or all([controller.is_finished for controller in controllers]) and robot.current_time > 5000: 
-        robot.save_data()
-        break
+    [controller.attach(robot) for controller in controllers]
+
+
+    current_state = STATE_INIT
+    return True
+
+def start_simulation():
+    global current_state
+
+    if current_state != STATE_READY: return False
+    
+    current_state = STATE_PLAY
+    return True
+
+def pause_simulation():
+    global current_state
+
+    if current_state != STATE_PLAY: return False
+    
+    current_state = STATE_READY
+    return True
+
+def control():
+    global controllers, current_state
+
+    reset_simulation()
+    pause_simulation()
+    while True:
+        if current_state == STATE_PLAY:
+            ik = {}
+            angles = {}
+            last_unstable_priority = -1
+            for controller in controllers:
+                controller.update()
+
+                if robot.current_time < 2000 and controller.name == 'WalkingController': continue
+
+                controls_parameters = controller.get_step()
+                if 'ik' in controls_parameters:
+                    for value in controls_parameters['ik']:
+                        ik[value] = controls_parameters['ik'][value] + (ik[value] if value in ik else 0)
+                if 'angles' in controls_parameters:
+                    for angle_name in controls_parameters['angles']:
+                        angles[angle_name] = controls_parameters['angles'][angle_name] + (angles[angle_name] if angle_name in angles else 0)
+
+                if not controller.check_stability():
+                    last_unstable_priority = controller.priority
+
+            if len(ik) > 0:
+                ik_angles = robot.get_ik_angles(ik)
+                for angle_name in ik_angles:
+                    angles[angle_name] = ik_angles[angle_name] + (angles[angle_name] if angle_name in angles else 0)
+            robot.apply_angles(angles)
+            robot.step()
+            
+        if all([controller.is_finished for controller in controllers]) and robot.current_time > 5000: 
+            # robot.save_data()
+            current_state = STATE_DONE
+            break
+
+async def websocket_handler(websocket, path):
+    rmssg = await websocket.recv()
+    command = rmssg['command']
+
+    if command == 'PATH':
+        path = rmssg['path']
+        ack = reset_simulation(path)
+
+    if command == 'PLAY':
+        ack = start_simulation()
+
+    if command == 'PAUSE':
+        ack = pause_simulation()
+
+    ackmssg = {
+        'command': 'ACK' if ack else 'NACK', 
+        'current_state': current_state
+        }
+    
+    await websocket.send(ackmssg)
+
+def start_loop(loop, server):
+    loop.run_until_complete(server)
+    print('started')
+    loop.run_forever()
+
+new_loop = asyncio.new_event_loop()
+start_server = websockets.serve(websocket_handler, 'localhost', 7374, loop=new_loop)
+websocket_thread = threading.Thread(target=start_loop, args=(new_loop, start_server))
+websocket_thread.start()
+time.sleep(2)
+
+control_thread = threading.Thread(target=control)
+control_thread.start()
+
+websocket_thread.join()
+control_thread.join()

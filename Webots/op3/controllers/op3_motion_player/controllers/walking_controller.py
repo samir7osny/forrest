@@ -6,12 +6,12 @@ import numpy as np
 import matplotlib.pyplot as plt
 
 class WalkingController(_controller):
-    def __init__(self, accuracy=1):
+    def __init__(self, accuracy=1, path=None):
         super().__init__(accuracy)
 
-        self.pattern_generator = PatternGenerator()
+        path = path if path is not None else {'path_str': 'M 300 100 C 100 100 200 200 200 300 L 250 350 L 220 300', 'width': 500, 'height': 500}
 
-        # t, right_foot_height, left_foot_height, foot_rotation, pelvis_side_displacement, right_foot_forward_displacement, left_foot_forward_displacement, pelvis_forward_displacement = pattern_generator.generate_full_pattern(number_of_steps=2)
+        self.pattern_generator = PatternGenerator()
 
         self.data = {
             't': [],
@@ -35,7 +35,7 @@ class WalkingController(_controller):
         self.yaw_angle = 0
         self.last_d = None
 
-        self.path_controller = PathController()
+        self.path_controller = PathController(path_str=path['path_str'], width=path['width'], height=path['height'])
 
     def accumulate(self, arr1, arr2):
         offset = arr1[-1] - arr2[0] if len(arr1) > 0 else 0
