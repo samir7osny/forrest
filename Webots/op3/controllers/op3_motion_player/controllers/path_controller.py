@@ -10,7 +10,7 @@ class PathController(_controller):
         # path_str = 'm 0 0 l 500 0'
         # path_str = 'm 0 0 c 0 0 250 50 500 0'
         self.name = 'PathController'
-
+        print(path_str)
         path = parse_path(path_str)
 
         SAMPLES_PER_PX = 1

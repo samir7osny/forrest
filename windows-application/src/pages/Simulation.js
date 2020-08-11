@@ -2,43 +2,84 @@ import React, { useState, useRef, useEffect } from 'react'
 import { connect, disconnect } from "./../api/setup_viewer"
 import "./Simulation.css"
 import { Path } from '../components/path';
+import { PositionGraph } from './PositionGraph';
 import ControlPanel from '../components/controlPanel';
-import { w3cwebsocket as W3CWebSocket } from "websocket";
 export function Simulation() {
     const [ip, setIP] = useState("localhost");
     const [port, setPort] = useState("1234")
-    const [connected, setConnected] = useState(false);
-    const [socket, setSocket] = useState({socket: null, available: false});
+    const [connected, setConnected] = useState(true);
+    const [available, setAvailable] = useState(false);
+    const [socket, setSocket] = useState(null);
     const [playing, setPlaying] = useState(false);
     const pathRef = useRef();
     const elm = useRef();
 
-    function handleConnect() {
-        let socket = new W3CWebSocket('ws://localhost:7374')
+    function createWebsocket() {
+        let socket = new WebSocket('ws://localhost:7374')
         socket.onopen = () => {
             console.log('WebSocket Client Connected')
-            setSocket({socket, available: true})
-            setConnected(true)
+            setSocket(socket)
+            setAvailable(true)
         }
         socket.onmessage = (message) => {
-            let mssg = JSON.parse(message)
-            console.log(mssg)
-            setSocket({socket, available: true})
+            message = JSON.parse(message.data)
+            console.log(message)
+            setAvailable(true)
+        }
+        socket.onclose = () => {
+            createWebsocket()
         }
     }
 
+    function handlePing() {
+        console.log(socket, available)
+        if (socket && available) {
+            console.log('ping')
+            let mssg = { command: 'PING' }
+            socket.send(JSON.stringify(mssg))
+            setAvailable(false)
+        }
+    }
+
+    function handleConnect() {
+        setConnected(true)
+    }
+
+    useEffect(() => {
+        if (connected && elm.current) {
+            connect(ip, port, elm.current)
+            createWebsocket()
+        }
+    }, [connected, elm])
+
+    useEffect(() => {
+        if (connected && socket && available) {
+            const interval = setInterval(() => {
+              handlePing()
+            }, 5000);
+            return () => {
+              clearInterval(interval);
+            };
+        }
+    }, [connected, socket, available])
+
     function sendPath() {
-        console.log("this is the <path> DOM element:\n", pathRef.current.getPath())
-        if (socket.socket && socket.available) {
+        let path = pathRef.current.getPath().getAttribute('d')
+        let width = pathRef.current.getPath().parentNode.getBoundingClientRect().width
+        let height = pathRef.current.getPath().parentNode.getBoundingClientRect().height
+        console.log("this is the <path> DOM element:\n", path, width, height)
+
+        if (socket && available) {
             let mssg = {
                 command: 'PATH',
-                path_str: pathRef.current.getPath(),
-                width: pathRef.current.parentNode.getBBox().width,
-                height: pathRef.current.parentNode.getBBox().height
+                path: {
+                    path_str: path,
+                    width,
+                    height,
+                },
             }
-            socket.send(mssg)
-            setSocket({socket, available: false})
-            setPlaying(false)
+            socket.send(JSON.stringify(mssg))
+            setAvailable(false)
         }
     }
 
@@ -55,16 +96,15 @@ export function Simulation() {
     }
 
     function handleToggle() {
-        if (socket.socket && socket.available) {
+        if (socket && available) {
             let mssg = {
-                command: playing ? 'PAUSE' : 'PLAY',
+                command: playing ? 'PAUSE' : 'PLAY'
             }
-            socket.send(mssg)
-            setSocket({socket, available: false})
+            socket.send(JSON.stringify(mssg))
+            setAvailable(false)
             setPlaying(!playing)
         }
     }
-    useEffect(() => { false && connected && connect(ip, port, document.getElementById("playerDiv")) }, [connected])
     return (
         <div className="simulation">
             {
@@ -87,9 +127,9 @@ export function Simulation() {
                                     ref={pathRef}
                                 />
                             </div>
-                            <div className="graph"></div>
+                            <div className="graph"><PositionGraph /></div>
                             <div className="controller">
-                                
+                                {available ? 'available' : 'not'}
                                 <button onClick={handleToggle}>toggle</button>
                             <ControlPanel
                                 run={sendPath}
