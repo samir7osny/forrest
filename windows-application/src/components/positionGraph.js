@@ -186,7 +186,7 @@ export function PositionGraph(props) {
     let texts_enter = texts
       .enter()
       .append("text")
-      .text((d, i) => i + 1)
+      .text((d, i) => i)
       .attr("x", (d, i) => xScale((checkpoints[i - 1] || checkpoints[i])[0]))
       .attr("y", (d, i) => yScale((checkpoints[i - 1] || checkpoints[i])[1]))
       .attr("font-size", 0);
@@ -204,8 +204,8 @@ export function PositionGraph(props) {
       .enter()
       .append("svg")
       .attr("id", "arrow")
-      // .attr('x', (d, i)=>xScale(0))
-      // .attr('y', (d, i)=>yScale(0))
+      .attr("x", (d) => xScale(d.position[0] - bullet_size))
+      .attr("y", (d) => yScale(d.position[1] - bullet_size))
       .attr("width", bullet_size * 2)
       .attr("height", bullet_size * 2)
       .attr("fill", "green");

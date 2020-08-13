@@ -18,24 +18,23 @@ export function Simulation() {
   const [ip, setIP] = useState("localhost");
   const [port, setPort] = useState("1234");
   const [connected, setConnected] = useState(false);
-  const [available, setAvailable] = useState(false);
-  const [socket, setSocket] = useState(null);
+//   const [available, setAvailable] = useState(false);
+  const [socket, setSocket] = useState({socket: null, available: false});
   const [info, setInfo] = useState({});
-  const [playing, setPlaying] = useState(false);
   const [current_state, setCurrentState] = useState(states.STATE_INIT);
   const pathRef = useRef();
   const elm = useRef();
 
   // ############################################ Socket ############################################
   function socketSend(mssg, buffered = false) {
-    if (available) {
+    if (socket.available) {
       if (buffered && buffer.length > 0) {
         mssg = buffer.shift();
         console.log("buffer");
       } else if (buffered) return;
-      // console.log(mssg)
-      setAvailable(false);
-      socket.send(mssg);
+      console.log('>', JSON.parse(mssg))
+      setSocket({socket: null, available: false});
+      socket.socket.send(mssg);
 
       // Testing
       // setTimeout(() => {
@@ -50,13 +49,12 @@ export function Simulation() {
     let new_socket = new WebSocket("ws://localhost:7374");
     new_socket.onopen = () => {
       // console.log('WebSocket Client Connected')
-      console.log(buffer);
-      setSocket(new_socket);
-      setAvailable(true);
+    //   console.log(buffer);
+      setSocket({socket: new_socket, available: true});
     };
     new_socket.onmessage = (message) => {
       message = JSON.parse(message.data);
-      // console.log(message)
+      console.log('<', message)
 
       if (message.command === "INFO") setInfo(message);
 
@@ -68,8 +66,8 @@ export function Simulation() {
     };
   }
   useEffect(() => {
-    if (available) socketSend(null, true);
-  }, [available]);
+    if (socket.available) socketSend(null, true);
+  }, [socket.available]);
 
   // Testing
   // useEffect(() => {
@@ -94,14 +92,14 @@ export function Simulation() {
   // ############################################ Ping ############################################
   function handlePing() {
     // console.log(socket, available)
-    if (socket && available) {
+    if (socket.socket && socket.available) {
       let mssg = { command: "PING" };
       // console.log(mssg.command, '########################')
       socketSend(JSON.stringify(mssg));
     }
   }
   useEffect(() => {
-    if (connected && socket && available) {
+    if (connected && socket.socket && socket.available) {
       const interval = setInterval(() => {
         handlePing();
       }, 2000);
@@ -109,7 +107,7 @@ export function Simulation() {
         clearInterval(interval);
       };
     }
-  }, [connected, socket, available]);
+  }, [connected, socket.socket, socket.available]);
 
   // Testing
   // useEffect(() => {
@@ -132,18 +130,23 @@ export function Simulation() {
       .height;
     // console.log("this is the <path> DOM element:\n", path, width, height)
 
-    if (socket) {
-      let mssg = {
+    let mssg = {
         command: "PATH",
         path: {
           path_str: path,
           width,
           height,
         },
-      };
-      // console.log(mssg.command)
-      socketSend(JSON.stringify(mssg));
     }
+    setCurrentState(states.STATE_INIT)
+    setSocket({socket: null, available: false})
+    document.getElementById('resetButton').click()
+    buffer.push(JSON.stringify(mssg))
+
+    // if (socket) {
+    //   // console.log(mssg.command)
+    //   socketSend(JSON.stringify(mssg));
+    // }
   }
   function clearPath() {
     pathRef.current.clear();
@@ -155,13 +158,12 @@ export function Simulation() {
 
   // ############################################ Toggle ############################################
   function handleToggle() {
-    if (socket) {
+    if (socket.socket && (current_state == states.STATE_PLAY || current_state == states.STATE_READY)) {
       let mssg = {
-        command: playing ? "PAUSE" : "PLAY",
+        command: current_state == states.STATE_PLAY ? "PAUSE" : "PLAY",
       };
       // console.log(mssg.command)
       socketSend(JSON.stringify(mssg));
-      setPlaying(!playing);
     }
   }
 
@@ -217,9 +219,9 @@ export function Simulation() {
           </div>
           <div className="controller">
             <h1>{getStateString(current_state)}</h1>
-            <p className={available ? "available" : "unavailable"}>
+            <p className={socket.available ? "available" : "unavailable"}>
               <span style={{ color: "darkgrey" }}>socket: </span>
-              {available ? "available" : "unavailable"}
+              {socket.available ? "available" : "unavailable"}
             </p>
             <ControlPanel
               run={sendPath}
