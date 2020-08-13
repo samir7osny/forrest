@@ -5,6 +5,7 @@
   text-align: center;
   display: flex;
   flex-direction: row;
+  font-family: cairo;
 }
 
 header {
