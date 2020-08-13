@@ -4,4 +4,19 @@
     background-color: white;
     border: 4px var(--logo-light-color) solid;
     color: var(--logo-light-color);
+    cursor: pointer;
+    transition: all 0.2s ease-in-out;
+}
+
+.rounded-button:active, .rounded-button:focus {
+    outline: none;
+}
+
+.rounded-button:hover {
+    filter: brightness(0.9);
+}
+
+.rounded-button:disabled {
+    pointer-events: none;
+    opacity: 0.5;
 }

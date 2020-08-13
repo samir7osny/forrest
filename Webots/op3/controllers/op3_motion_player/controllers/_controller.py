@@ -6,9 +6,15 @@ class _controller:
         self.active = True
         self.priority = -1
         self.name = 'controller'
+        self.buffer = []
 
     def attach(self, robot):
         self.robot = robot
+
+    def flush_buffer(self):
+        data = self.buffer
+        self.buffer = []
+        return data
 
     def update(self):
         pass

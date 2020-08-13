@@ -10,7 +10,7 @@ class PathController(_controller):
         # path_str = 'm 0 0 l 500 0'
         # path_str = 'm 0 0 c 0 0 250 50 500 0'
         self.name = 'PathController'
-        print(path_str)
+        self.path_str = path_str
         path = parse_path(path_str)
 
         SAMPLES_PER_PX = 1
@@ -19,10 +19,13 @@ class PathController(_controller):
         path_length = path.length()
         num_samples = int(path_length * SAMPLES_PER_PX)
         for i in range(num_samples):
+            # print(path_length * i / (num_samples-1))
             point = path.point(path.ilength(path_length * i / (num_samples-1)))
-            self.points.append([point.real, height-point.imag])
+            self.points.append([point.real, height - point.imag])
+        self.height = height
 
         self.points = np.array(self.points)
+        self.offset = np.copy(self.points[0])
         self.points -= self.points[0]
         self.current_point_idx = 0
         
@@ -47,6 +50,12 @@ class PathController(_controller):
 
         self.drawd = False
         self.done_points = np.array([[0,0]])
+
+        self.buffer.append({
+            'command': 'INFO',
+            'path': self.path_str,
+            'checkpoints': [[(self.points[0] + self.offset)[0], height - (self.points[0] + self.offset)[1]]] + [[(point + self.offset)[0], height - (point + self.offset)[1]] for point in self.points[self.checkpoints]],
+        })
 
     def update_plot(self):
 
@@ -122,6 +131,15 @@ class PathController(_controller):
 
         # print('robot_position', self.robot_position, 'robot_z_tilt', robot_z_tilt, 'angle', angle, 'point', len(self.done_points) + next_point)
         # if draw: self.update_plot()
+        self.buffer.append({
+            'command': 'INFO',
+            'robot': {
+                'position': [(self.robot_position + self.offset)[0], self.height - (self.robot_position + self.offset)[1]],
+                'angle': robot_z_tilt
+            },
+            'target': [(self.target_point + self.offset)[0], self.height - (self.target_point + self.offset)[1]],
+        })
+
         return angle, move_d
 
     @property

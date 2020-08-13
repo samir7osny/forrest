@@ -1,0 +1,45 @@
+.position-graph path.original{
+    fill: none;
+    stroke: var(--logo-light-color);
+    stroke-width: 10;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+}
+
+.position-graph path.robot{
+    fill: none;
+    stroke: black;
+    stroke-width: 10;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+    opacity: 0.4;
+    filter: brightness(0.7);
+}
+
+.position-graph svg#arrow{
+    z-index: 10;
+}
+
+.position-graph circle.bullet{
+    fill: var(--logo-light-color);
+}
+
+.position-graph circle.robot_bullet{
+    fill: var(--logo-light-color);
+    opacity: 0.4;
+    filter: brightness(0.7);
+}
+
+.position-graph circle.target{
+    fill: var(--logo-light-color);
+    opacity: 0.4;
+    filter: brightness(0.7);
+}
+
+.position-graph text{
+    text-anchor: middle;
+    alignment-baseline: middle;
+    fill: wheat;
+    font-family: "Righteous", cursive;
+}
+

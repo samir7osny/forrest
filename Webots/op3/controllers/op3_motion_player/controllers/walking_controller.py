@@ -156,6 +156,11 @@ class WalkingController(_controller):
     def attach(self, robot):
         super().attach(robot)
         self.path_controller.robot = robot
+    
+    def flush_buffer(self):
+        data = self.buffer + self.path_controller.flush_buffer()
+        self.buffer = []
+        return data
 
     @property
     def is_finished(self):

@@ -9,6 +9,7 @@ export default function RoundedButton(props) {
             }}
             onClick={props.onClick}
             className="rounded-button"
+            disabled={props.active==false}
         >
             {props.content}
         </button>

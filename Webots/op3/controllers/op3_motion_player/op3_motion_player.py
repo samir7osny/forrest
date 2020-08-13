@@ -19,14 +19,21 @@ robot = Robot(accuracy=1)
 controllers = []
 current_state = STATE_INIT
 buffer = []
-mutex = False
+socket_buffer = []
+
+
+def check_reset_simulation():
+    global current_state
+    return True, STATE_READY
 
 def reset_simulation(path=None):
-    global controllers, current_state
-    print('reset')
+    global controllers, current_state, buffer
+    print('##############################################reset')
     current_state = STATE_READY
 
     robot.robot.simulationReset()
+    robot.robot.simulationResetPhysics()
+    robot.robot.step(1)
     robot.reset()
 
     base_controller = BaseController()
@@ -45,44 +52,65 @@ def reset_simulation(path=None):
     inclination_pitch_controller.priority = 1
     inclination_roll_controller.priority = 1
     walking_controller.priority = 2
+    
+    buffer = []
 
     [controller.attach(robot) for controller in controllers]
 
-
     return True
+
+def check_start_simulation():
+    global current_state
+    return current_state == STATE_READY, STATE_PLAY
 
 def start_simulation():
     global current_state
 
-
-    if current_state != STATE_READY: return False
+    if not check_start_simulation()[0]: return False
     
     current_state = STATE_PLAY
     return True
 
+def check_pause_simulation():
+    global current_state
+    return current_state == STATE_PLAY, STATE_READY
+
 def pause_simulation():
     global current_state
 
-    if current_state != STATE_PLAY: return False
+    if not check_pause_simulation()[0]: return False
     
     current_state = STATE_READY
     return True
 
 
 def control():
-    global controllers, current_state, mutex
+    global controllers, current_state, socket_buffer, buffer
 
-    reset_simulation()
     while True:
-        if robot.current_time == 200: 
-            buffer.append({
-                'command': 'DONE',
-                'current_state': current_state
-            })
+        # print(len(socket_buffer), socket_buffer)
+        # robot.robot.step(1)
+
+        if len(socket_buffer) > 0:
+            exec_req = socket_buffer.pop(0)
+            command = exec_req['command']
+            # print('command', command)
+
+            if command == 'PATH':
+                path = exec_req['path']
+                reset_simulation(path)
+
+            if command == 'PLAY':
+                start_simulation()
+
+            if command == 'PAUSE':
+                pause_simulation()
+
+        for controller in controllers:
+            buffer = buffer + controller.flush_buffer()
             
-        while not mutex: pass
-        mutex = False
         if current_state == STATE_PLAY:
+            # print(robot.tilt_angles[-1] if len(robot.tilt_angles) > 0 else [])
             ik = {}
             angles = {}
             last_unstable_priority = -1
@@ -116,42 +144,46 @@ def control():
                 'command': 'DONE',
                 'current_state': current_state
             })
-        mutex = True
+
         
 async def websocket_handler(websocket, path):
-    global buffer, mutex
+    global buffer, socket_buffer
 
     rmssg = await websocket.recv()
-    print('socket', rmssg)
-
+    # print('socket', rmssg)
+    # robot.robot.step(1)
     rmssg = json.loads(rmssg)
     command = rmssg['command']
 
     ackmssg = {
         'command': '404'
     }
+    new_state = current_state
 
-    while not mutex: pass
-    mutex = False
     if command == 'PATH':
         path = rmssg['path']
-        ack = reset_simulation(path)
+        ack, new_state = check_reset_simulation()
 
     if command == 'PLAY':
-        ack = start_simulation()
+        ack, new_state = check_start_simulation()
 
     if command == 'PAUSE':
-        ack = pause_simulation()
+        ack, new_state = check_pause_simulation()
         
     if command in ['PATH', 'PLAY', 'PAUSE']:
+        socket_buffer.append(rmssg)
         ackmssg = { 'command': 'ACK' if ack else 'NACK' }
-    mutex = True
+        new_state = new_state if ack else current_state
 
     if command == 'PING':
+        # print(buffer)
+        # robot.robot.step(1)
         if len(buffer) != 0: ackmssg = buffer.pop(0) 
         else: ackmssg = {'command': 'CLEAR'}
 
-    ackmssg['current_state'] = current_state
+    ackmssg['current_state'] = new_state
+    # print(ackmssg)
+    # robot.robot.step(1)
     await websocket.send(json.dumps(ackmssg))
 
 control_thread = threading.Thread(target=control)
