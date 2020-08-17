@@ -1,0 +1,53 @@
+#VRML_SIM R2020a utf8
+WorldInfo {
+  info [
+    "ROBOTIS OP3 robot."
+    "The ROBOTIS OP3 robot simulation model can be programmed using the ROBOTIS OP3 motions files."
+  ]
+  title "ROBOTIS OP3"
+  basicTimeStep 1
+}
+Viewpoint {
+  orientation -0.11681647327328006 0.9845300528958814 0.1305928272028229 1.6975267803646135
+  position 8.213804723613642 2.30682376671061 0.5553084226667849
+  follow "ROBOTIS OP3"
+}
+TexturedBackground {
+}
+TexturedBackgroundLight {
+}
+RobotisOp3 {
+  translation -0.00712642 0.36 0.0447343
+  rotation 0.5773489358550934 0.5773499358549823 0.5773519358547601 -2.094395307179586
+  controller "op3_motion_player"
+  cameraWidth 320
+  cameraHeight 180
+}
+Floor {
+}
+Worktop {
+  translation 0 -0.023 1.961
+  name "worktop(4)"
+  size 10 0.15 0.5
+}
+Worktop {
+  translation 0 0 0
+  size 10 0.1 0.5
+}
+Worktop {
+  translation 0 0.05 0.975
+  name "worktop(2)"
+  size 10 0.15 0.5
+}
+Worktop {
+  translation 0 0.014 1.461
+  rotation 1 0 0 0.15
+  name "worktop(3)"
+  size 10 0.15 0.5
+}
+Worktop {
+  translation 0 0.0103369 0.49
+  rotation 1 0 0 -0.15
+  name "worktop(1)"
+  size 10 0.15 0.5
+}

@@ -8,6 +8,8 @@ import {
   Redirect,
 } from "react-router-dom";
 import { Simulation } from "./pages/Simulation";
+import Documentation from "./pages/Documentation";
+import Team from "./pages/Team";
 export function App() {
   return (
     <Router>
@@ -29,10 +31,10 @@ export function App() {
             <Simulation />
           </Route>
           <Route exact path="/documentation">
-            <Simulation />
+            <Documentation />
           </Route>
           <Route exact path="/team">
-            <Simulation />
+            <Team />
           </Route>
         </Switch>
       </div>

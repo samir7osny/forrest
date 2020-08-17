@@ -1,0 +1,12 @@
+.documentation {
+  width: 95vw;
+  height: 100vh;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  flex-direction: column;
+}
+
+.documentation h1 {
+  color: var(--logo-light-color);
+}

@@ -1,0 +1,26 @@
+.member {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+}
+.member h2 {
+  color: var(--logo-light-color);
+  margin: 1rem 0;
+}
+
+.member img {
+  border-radius: 50%;
+  background-color: white;
+  padding: 0.5rem;
+  border: 0.2rem solid var(--logo-light-color);
+  transition: all 1s ease;
+  width: 200px;
+  max-height: 200px;
+  object-fit: cover;
+}
+
+.member img:hover {
+  filter: grayscale(70%);
+  cursor: pointer;
+}
